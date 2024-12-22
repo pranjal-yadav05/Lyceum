@@ -13,7 +13,7 @@ const VideoChatPage = () => {
   useEffect(() => {
     // Initialize socket connection
     const addr = process.env.REACT_APP_SOCKET_URL;
-    socket.current = io(addr); 
+    socket.current = io(addr,{ withCredentials:true, }); 
 
     const initializeMedia = async () => {
       try {
