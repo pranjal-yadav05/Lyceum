@@ -19,13 +19,33 @@ passport.use(new GoogleStrategy({
 }, async (accessToken, refreshToken, profile, done) => {
   try {
     const user = await User.findOne({ email: profile.emails[0].value });
+
     if (!user) {
-      // If the user doesn't exist, register a new user without a password
+      // Generate a default username by using the display name or part of it
+      const email = profile.emails[0].value;
+      const username = email.split('@')[0].toLowerCase();
+
+      if (!username || username === '') {
+        return done(new Error('Generated username is invalid'), null); // Return error if username is invalid
+      }
+
+      // Ensure username is unique
+      let existingUsername = await User.findOne({ username });
+      let counter = 1;
+      while (existingUsername) {
+        username = `${username}${counter}`; // Append a number to the username
+        existingUsername = await User.findOne({ username });
+        counter++;
+      }
+
+      // Create a new user with the username and other details
       const newUser = new User({
         email: profile.emails[0].value,
         name: profile.displayName,
         googleId: profile.id,
+        username: username, // Add the generated username
       });
+
       await newUser.save();
       return done(null, newUser);
     }
