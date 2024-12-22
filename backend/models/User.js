@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcrypt';
 
 // Define the user schema
 const userSchema = new mongoose.Schema({
@@ -11,12 +12,21 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true, // Password is required
+    required: function() {
+      // Password is required only if the user is not logging in via Google
+      return !this.googleId; // if googleId is not set, then password is required
+    },
+  },
+  googleId: {
+    type: String,  // For Google OAuth user identification
+    unique: true,  // Ensure googleId is unique
   },
 }, {
   timestamps: true, // Automatically add createdAt and updatedAt fields
 });
-
+userSchema.methods.isPasswordValid = async function (inputPassword) {
+  return await bcrypt.compare(inputPassword, this.password);
+};
 // Create and export the User model
 const User = mongoose.model('User', userSchema);
 

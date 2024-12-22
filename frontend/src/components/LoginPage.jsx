@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { GoogleLogin } from '@react-oauth/google'; // Import GoogleLogin component
+import { jwtDecode } from 'jwt-decode';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -10,6 +12,41 @@ function LoginPage({ setAuth }) {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // Google login handler
+  const handleGoogleLoginSuccess = async (response) => {
+    try {
+      const token = response.credential; // Get the token returned by Google
+      const decodedToken = jwtDecode(token); // Decode the JWT to get user details
+
+      // Send the token to your backend for verification
+      const res = await axios.post(`${API_URL}/auth/google`, { token });
+      localStorage.setItem('token', res.data.token); // Store the JWT token
+      setAuth(true); // Set the auth state
+      navigate('/forum'); // Redirect to the forum
+    } catch (err) {
+      setError('Google login failed');
+    }
+  };
+
+  // Handle Google login error
+  const handleGoogleLoginError = () => {
+    setError('Google login failed');
+  };
+
+
+  useEffect(() => {
+    // Check if a token is present in the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (token) {
+      localStorage.setItem('token', token);
+      setAuth(true);
+      navigate('/forum');
+    }
+  }, [setAuth, navigate]);
+
+  // Regular login handler
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -70,6 +107,14 @@ function LoginPage({ setAuth }) {
             Register here
           </Link>
         </p>
+      </div>
+
+      {/* Google Login Button */}
+      <div className="mt-6">
+        <GoogleLogin 
+          onSuccess={handleGoogleLoginSuccess} // Pass success handler
+          onError={handleGoogleLoginError} // Pass error handler
+        />
       </div>
     </div>
   );

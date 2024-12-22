@@ -1,5 +1,6 @@
 import express from 'express';
 import Post from '../models/Post.js';
+import authenticateToken from '../middleware/authenticateToken.js';
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get all posts
-router.get('/', async (req, res) => {
+router.get('/',async (req, res) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
     res.json(posts);

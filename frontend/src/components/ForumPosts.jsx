@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import {jwtDecode} from 'jwt-decode';
+import Cookies from 'js-cookie';
 
 const API_URL = process.env.REACT_APP_API_URL + '/posts';
 
@@ -8,16 +10,35 @@ function ForumPosts() {
   const [posts, setPosts] = useState([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [email,setEmail] = useState('User Email');
   const [editingId, setEditingId] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
     fetchPosts();
+    const token = localStorage.getItem('token');
+    if (token) {
+      const decodedToken = jwtDecode(token);
+      setEmail(decodedToken.email);
+    }
   }, []);
 
+  const handleJoinChatRoom = () => {
+    const roomId = prompt("Enter the Room ID to join:");
+    if (roomId) {
+      navigate(`/video-chat/${roomId}`);
+    }
+  };
+
   const fetchPosts = async () => {
-    const response = await axios.get(API_URL);
-    setPosts(response.data);
+    try {
+      const response = await axios.get(API_URL, {
+        withCredentials: true, // Include cookies in the request
+      });
+      setPosts(response.data);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -50,6 +71,11 @@ function ForumPosts() {
     navigate('/login');
   };
 
+  const handleJoinChat = () => {
+    const roomId = Math.random().toString(36).substr(2, 9); // Generate a random room ID
+    navigate(`/video-chat/${roomId}`);
+  };
+
   return (
     <div className="container mx-auto p-6">
       <header className="bg-blue-600 text-white text-center py-6 rounded-lg mb-8 shadow-lg">
@@ -57,6 +83,14 @@ function ForumPosts() {
       </header>
 
       <div className="text-right mb-6">
+      <i className='px-6 py-3 mx-3'>{email}</i>
+      <button className='bg-blue-600 text-white px-6 mx-3 py-3 rounded-lg hover:bg-blue-700 transition duration-300' onClick={handleJoinChat}>Create a Video Chat Room</button>
+      <button
+        className='bg-green-600 text-white px-6 mx-3 py-3 rounded-lg hover:bg-green-700 transition duration-300'
+        onClick={handleJoinChatRoom}
+      >
+        Join a Chat Room
+      </button>
         <button
           onClick={handleLogout}
           className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition ease-in-out duration-200"
