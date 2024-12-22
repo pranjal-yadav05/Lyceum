@@ -1,33 +1,41 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 import bcrypt from 'bcrypt';
 
-// Define the user schema
 const userSchema = new mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    unique: true, // Ensures the username is unique
+    trim: true, // Trims spaces around the username
+    minlength: 3, // Minimum length of 3 characters
+    maxlength: 30, // Maximum length of 30 characters
+  },
   email: {
     type: String,
     required: true,
-    unique: true, // Ensures that the email is unique
-    lowercase: true, // Ensures the email is stored in lowercase
-    trim: true, // Trims spaces around the email
+    unique: true,
+    lowercase: true,
+    trim: true,
   },
   password: {
     type: String,
     required: function() {
-      // Password is required only if the user is not logging in via Google
-      return !this.googleId; // if googleId is not set, then password is required
+      return !this.googleId;
     },
   },
   googleId: {
-    type: String,  // For Google OAuth user identification
-    unique: true,  // Ensure googleId is unique
+    type: String,
+    unique: true,
+    sparse: true,
   },
 }, {
-  timestamps: true, // Automatically add createdAt and updatedAt fields
+  timestamps: true,
 });
+
+// Password validation method
 userSchema.methods.isPasswordValid = async function (inputPassword) {
   return await bcrypt.compare(inputPassword, this.password);
 };
-// Create and export the User model
-const User = mongoose.model('User', userSchema);
 
+const User = mongoose.model('User', userSchema);
 export default User;

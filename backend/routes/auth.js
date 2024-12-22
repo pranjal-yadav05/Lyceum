@@ -89,38 +89,74 @@ router.post('/google', async (req, res) => {
 
 
 router.post('/register', async (req, res) => {
-    const { email, password } = req.body;
-    try {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) return res.status(400).json({ error: 'Email already in use' });
-  
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = new User({ email, password: hashedPassword });
-      await user.save();
-      res.status(201).json({ message: 'User registered successfully' });
-    } catch (err) {
-      res.status(500).json({ error: 'Internal Server Error' });
+  const { username, email, password } = req.body;
+
+  try {
+    // Check if the email or username already exists
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already in use' });
     }
-  });
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already in use' });
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword,
+    });
+
+    await user.save();
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (err) {
+    console.error('Error during registration:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
   
 // Login Endpoint
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { identifier, password } = req.body; // "identifier" can be email or username
 
-  // Validate user credentials (simplified example)
-  const user = await User.findOne({ email });
-  if (!user || !user.isPasswordValid(password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  try {
+    // Check if identifier is an email or username
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+    const query = isEmail ? { email: identifier } : { username: identifier };
+
+    // Find user by email or username
+    const user = await User.findOne(query);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Validate password
+    const isPasswordValid = await user.isPasswordValid(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, username: user.username },
+      'your-secret-key',
+      { expiresIn: '1h' } // Token expiration
+    );
+
+    res.json({ token });
+  } catch (err) {
+    console.error('Error during login:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-
-  // Generate JWT
-  const token = jwt.sign({ id: user._id, email: user.email }, 'your-secret-key', {
-    expiresIn: '1h', // Token expiration
-  });
-
-  res.json({ token });
 });
+
 
 router.post('/logout', (req, res) => {
   res.clearCookie('token'); // Clear the cookie

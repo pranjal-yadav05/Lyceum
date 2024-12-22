@@ -90,7 +90,5 @@ io.on('connection', (socket) => {
   });
 });
 
-
-
-module.exports = app;
-
+const PORT = process.env.PORT;
+httpServer.listen(PORT, () => console.log(`Server running on port ${PORT}`));
