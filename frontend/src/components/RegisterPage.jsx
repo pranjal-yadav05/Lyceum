@@ -8,6 +8,7 @@ function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [username,setUsername] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
@@ -21,7 +22,7 @@ function RegisterPage() {
     }
 
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, { email, password });
+      const response = await axios.post(`${API_URL}/auth/register`, { username, email, password });
       localStorage.setItem('token', response.data.token);
       navigate('/select-interests');
     } catch (err) {
@@ -36,6 +37,19 @@ function RegisterPage() {
 
         <form onSubmit={handleRegister}>
           {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+
+          <div className="mb-4">
+            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter Username"
+              className="w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
 
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>

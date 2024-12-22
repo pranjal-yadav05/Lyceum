@@ -7,7 +7,7 @@ import { jwtDecode } from 'jwt-decode';
 const API_URL = process.env.REACT_APP_API_URL;
 
 function LoginPage({ setAuth }) {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ function LoginPage({ setAuth }) {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(`${API_URL}/auth/login`, { email, password });
+      const response = await axios.post(`${API_URL}/auth/login`, { identifier, password });
       localStorage.setItem('token', response.data.token);
       setAuth(true);
       navigate('/forum');
@@ -67,13 +67,13 @@ function LoginPage({ setAuth }) {
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         
         <div className="mb-4">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700">Username or Email</label>
           <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
+            type="text"
+            id="em_us"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            placeholder="Enter your Username or Email"
             className="w-full p-3 mt-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           />
