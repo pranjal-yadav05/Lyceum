@@ -1,39 +1,96 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import {jwtDecode} from 'jwt-decode';
-import Cookies from 'js-cookie';
+import axios from 'axios';
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Plus, MessageSquare, ChevronRight, Image as ImageIcon, Bold, Italic, List, Link as LinkIcon } from 'lucide-react';
+import LeftSidebar from './LeftSidebar';
 
-const API_URL = process.env.REACT_APP_API_URL + '/posts';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "./ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "./ui/tabs";
 
-function ForumPosts() {
+const API_URL = process.env.REACT_APP_API_URL;
+
+export default function ForumPosts({username}) {
+  const [topics, setTopics] = useState([]);
+  const [selectedTopic, setSelectedTopic] = useState(null);
   const [posts, setPosts] = useState([]);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [email,setEmail] = useState('User Email');
-  const [editingId, setEditingId] = useState(null);
+  const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+  const [newPost, setNewPost] = useState({
+    title: '',
+    content: '',
+    topicId: '',
+    author: username
+  });
+  const [newTopic, setNewTopic] = useState({
+    title: '',
+    description: '',
+    category: '',
+    author: username
+  });
   const navigate = useNavigate();
-  
+
+  // Categories for topics
+  const categories = [
+    'General Discussion',
+    'Study Groups',
+    'Academic Help',
+    'Campus Life',
+    'Career Advice',
+    'Events',
+  ];
+
   useEffect(() => {
-    fetchPosts();
-    const token = localStorage.getItem('token');
-    if (token) {
-      const decodedToken = jwtDecode(token);
-      setEmail(decodedToken.email);
-    }
+    fetchTopics();
   }, []);
 
-  const handleJoinChatRoom = () => {
-    const roomId = prompt("Enter the Room ID to join:");
-    if (roomId) {
-      navigate(`/video-chat/${roomId}`);
+  useEffect(() => {
+    if (selectedTopic) {
+      fetchPosts(selectedTopic);
+    }
+  }, [selectedTopic]);
+
+  const fetchTopics = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/topics`, {
+        withCredentials: true,
+      });
+      setTopics(response.data);
+    } catch (error) {
+      console.error('Error fetching topics:', error);
     }
   };
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (topicId) => {
     try {
-      const response = await axios.get(API_URL, {
-        withCredentials: true, // Include cookies in the request
+      const response = await axios.get(`${API_URL}/topics/${topicId}/posts`, {
+        withCredentials: true,
       });
       setPosts(response.data);
     } catch (error) {
@@ -41,120 +98,329 @@ function ForumPosts() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (editingId) {
-      await axios.patch(`${API_URL}/${editingId}`, { title, content });
-      setEditingId(null);
-    } else {
-      await axios.post(API_URL, { title, content, author: '60cc9b0e001e3bfd00a6eddf' }); // Replace with actual user ID
+  const handleCreateTopic = async () => {
+    try {
+      console.log(newTopic);
+      await axios.post(`${API_URL}/topics`, newTopic, {
+        withCredentials: true,
+      });
+      setIsCreateTopicOpen(false);
+      setNewTopic({ title: '', description: '', category: '' });
+      fetchTopics();
+    } catch (error) {
+      console.error('Error creating topic:', error);
     }
-    setTitle('');
-    setContent('');
-    fetchPosts();
   };
 
-  const handleEdit = (post) => {
-    setTitle(post.title);
-    setContent(post.content);
-    setEditingId(post._id);
+  const handleCreatePost = async () => {
+    try {
+      
+      await axios.post(`${API_URL}/topics/${selectedTopic}/posts`, newPost, {
+        withCredentials: true,
+      });
+
+      setIsCreatePostOpen(false);
+      setNewPost({ title: '', content: '', topicId: '' });
+      fetchPosts(selectedTopic);
+    } catch (error) {
+      console.error('Error creating post:', error);
+    }
   };
 
-  const handleDelete = async (id) => {
-    await axios.delete(`${API_URL}/${id}`);
-    fetchPosts();
+  const handleTopicSelect = (topicId) => {
+    setSelectedTopic(topicId);
+    fetchPosts(topicId);
   };
 
-  const handleLogout = () => {
-    // Remove JWT token from local storage (or state)
-    localStorage.removeItem('token');
-    navigate('/login');
+  const handleDeleteTopic = async (topicId) => {
+    try {
+      await axios.delete(`${API_URL}/topics/${topicId}`,{
+        headers: {
+          'X-Username': username,
+        },
+        withCredentials: true,
+      });
+      fetchTopics(); // Refresh topics after deletion
+    } catch (error) {
+      console.error("Error deleting topic:", error);
+    }
   };
 
-  const handleJoinChat = () => {
-    const roomId = Math.random().toString(36).substr(2, 9); // Generate a random room ID
-    navigate(`/video-chat/${roomId}`);
+  const handleDeletePost = async (postId) => {
+    try {
+      await axios.delete(`${API_URL}/posts/${postId}`, {
+        withCredentials: true,
+      });
+      fetchPosts(selectedTopic); // Refresh posts after deletion
+    } catch (error) {
+      console.error("Error deleting post:", error);
+    }
   };
+
 
   return (
-    <div className="container mx-auto p-6">
-      <header className="bg-blue-600 text-white text-center py-6 rounded-lg mb-8 shadow-lg">
-        <h1 className="text-3xl font-extrabold">Forum Posts</h1>
-      </header>
+    <div className="min-h-screen min-w-screen bg-[#0f0a1f] text-white flex">
+      <LeftSidebar />
 
-      <div className="text-right mb-6">
-      <i className='px-6 py-3 mx-3'>{email}</i>
-      <button className='bg-blue-600 text-white px-6 mx-3 py-3 rounded-lg hover:bg-blue-700 transition duration-300' onClick={handleJoinChat}>Create a Video Chat Room</button>
-      <button
-        className='bg-green-600 text-white px-6 mx-3 py-3 rounded-lg hover:bg-green-700 transition duration-300'
-        onClick={handleJoinChatRoom}
-      >
-        Join a Chat Room
-      </button>
-        <button
-          onClick={handleLogout}
-          className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition ease-in-out duration-200"
-        >
-          Logout
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-lg mb-8">
-        <h2 className="text-2xl font-semibold mb-6">{editingId ? 'Edit Your Post' : 'Create a New Post'}</h2>
-        
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Post Title"
-          className="w-full p-4 mb-4 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-        
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Write your post content..."
-          className="w-full p-4 mb-6 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        />
-        
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition duration-300"
-        >
-          {editingId ? 'Update Post' : 'Create Post'}
-        </button>
-      </form>
-
-      <div>
-        {posts.map((post) => (
-          <div key={post._id} className="bg-white p-6 rounded-lg shadow-lg mb-6 hover:shadow-xl transition duration-200">
-            <h3 className="text-2xl font-bold text-gray-800 mb-4">{post.title}</h3>
-            <p className="text-gray-700 mb-4">{post.content}</p>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => handleEdit(post)}
-                className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition duration-200"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(post._id)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
-              >
-                Delete
-              </button>
+      <div className="flex-1 p-6 ml-16">
+        <div className="max-w-6xl mx-auto">
+          {/* Header with Tabs */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold">Discussion Forums</h1>
+              <div className="flex gap-4">
+                <Dialog open={isCreateTopicOpen} onOpenChange={setIsCreateTopicOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Topic
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[#1a1425] text-white">
+                    <DialogHeader>
+                      <DialogTitle>Create New Topic</DialogTitle>
+                      <DialogDescription className="text-gray-400">
+                        Create a new discussion topic for others to join.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 my-4">
+                      <Input
+                        placeholder="Topic title"
+                        value={newTopic.title}
+                        onChange={(e) => setNewTopic({...newTopic, title: e.target.value})}
+                        className="bg-[#2a2435] border-purple-600/20"
+                      />
+                      <Textarea
+                        placeholder="Topic description"
+                        value={newTopic.description}
+                        onChange={(e) => setNewTopic({...newTopic, description: e.target.value})}
+                        className="bg-[#2a2435] border-purple-600/20"
+                      />
+                      <Select
+                        value={newTopic.category}
+                        onValueChange={(value) => setNewTopic({...newTopic, category: value})}
+                      >
+                        <SelectTrigger className="bg-[#2a2435] border-purple-600/20">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#2a2435]">
+                          <SelectGroup>
+                            <SelectLabel>Categories</SelectLabel>
+                            {categories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={handleCreateTopic}
+                      >
+                        Create Topic
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
 
-      <footer className="text-center text-gray-500 mt-8">
-        &copy; 2024 Forum App. All rights reserved.
-      </footer>
+            <Tabs defaultValue="all" className="w-full">
+              <TabsList className="bg-[#1a1425] border-purple-600/20">
+                <TabsTrigger value="all">All Topics</TabsTrigger>
+                {categories.map((category) => (
+                  <TabsTrigger key={category} value={category}>
+                    {category}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <TabsContent value="all" className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {topics.map((topic) => (
+                    <Card 
+                      key={topic._id}
+                      className="bg-[#1a1425] border-purple-600/20 cursor-pointer hover:bg-[#2a2435] transition-colors"
+                      onClick={() => setSelectedTopic(topic._id)}
+                    >
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-white">{topic.title}</CardTitle>
+                          <span className="text-xs text-purple-400">{topic.category}</span>
+                        </div>
+                        {username === topic.author && ( // Only render the button if the user is the author
+                          <Button 
+                            variant="ghost" 
+                            className="text-red-500 hover:text-red-400 bg-transparent border border-red-500 hover:border-red-400 rounded-full px-2 py-1 text-xs transition-all"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent triggering topic selection
+                              handleDeleteTopic(topic._id);
+                            }}
+                          >
+                            Delete Topic
+                          </Button>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-400 text-sm mb-4">{topic.description}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            <span>{topic.postsCount || 0} posts</span>
+                          </div>
+                          <span>Created by {topic.author}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {categories.map((category) => (
+                <TabsContent key={category} value={category} className="mt-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {topics
+                      .filter((topic) => topic.category === category)
+                      .map((topic) => (
+                        <Card 
+                          key={topic._id}
+                          className="bg-[#1a1425] border-purple-600/20 cursor-pointer hover:bg-[#2a2435] transition-colors"
+                          onClick={() => setSelectedTopic(topic._id)}
+                        >
+                          <CardHeader>
+                            <CardTitle className="text-white">{topic.title}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-gray-400 text-sm mb-4">{topic.description}</p>
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <div className="flex items-center gap-2">
+                                <MessageSquare className="h-4 w-4" />
+                                <span>{topic.postsCount || 0} posts</span>
+                              </div>
+                              <span>Created by {topic.author}</span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                    ))}
+                  </div>
+                </TabsContent>
+              ))}
+            </Tabs>
+          </div>
+
+          {/* Selected Topic View */}
+          {selectedTopic && (
+            <div className="mt-8">
+              <div className="flex justify-between items-center mb-6">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setSelectedTopic(null)}
+                  className="text-purple-400 hover:text-purple-300"
+                >
+                  <ChevronRight className="mr-2 h-4 w-4 rotate-180" />
+                  Back to Topics
+                </Button>
+                <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Post
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-[#1a1425] text-white">
+                    <DialogHeader>
+                      <DialogTitle>Create New Post</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 my-4">
+                      <Input
+                        placeholder="Post title"
+                        value={newPost.title}
+                        onChange={(e) => setNewPost({...newPost, title: e.target.value})}
+                        className="bg-[#2a2435] border-purple-600/20"
+                      />
+                      <div className="flex gap-2 mb-2">
+                        <Button variant="ghost" size="sm">
+                          <Bold className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Italic className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <List className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <LinkIcon className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Textarea
+                        placeholder="Write your post content..."
+                        value={newPost.content}
+                        onChange={(e) => setNewPost({...newPost, content: e.target.value})}
+                        className="bg-[#2a2435] border-purple-600/20 min-h-[200px]"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        className="bg-purple-600 hover:bg-purple-700"
+                        onClick={handleCreatePost}
+                      >
+                        Create Post
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <div className="space-y-4">
+                {posts.map((post) => (
+                  <Card key={post._id} className="bg-[#1a1425] border-purple-600/20">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-white mb-2">{post.title}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src="/placeholder.svg" />
+                              <AvatarFallback>{post.author[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm text-gray-400">{post.author}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(post.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      {username === post.author && ( // Only render the button if the user is the author
+                        <Button 
+                          variant="ghost" 
+                          className="text-red-500 hover:text-red-400 bg-transparent border border-red-500 hover:border-red-400 rounded-full px-2 py-1 text-xs transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering parent events
+                            handleDeletePost(post._id);
+                          }}
+                        >
+                          Delete Post
+                        </Button>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="prose prose-invert max-w-none">
+                        <p className="text-gray-300">{post.content}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-export default ForumPosts;

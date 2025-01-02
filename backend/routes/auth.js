@@ -12,48 +12,60 @@ dotenv.config();
 const JWT_SECRET = 'Lyceum'; // Replace with a secure secret
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+console.log('Setting up passport strategy...');
+
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
 }, async (accessToken, refreshToken, profile, done) => {
+  console.log('Google profile:', profile);
+  console.log('Inside Google strategy callback...');
+  
   try {
-    const user = await User.findOne({ email: profile.emails[0].value });
+    const email = profile.emails[0].value;
+    let user = await User.findOne({ email });
 
     if (!user) {
-      // Generate a default username by using the display name or part of it
-      const email = profile.emails[0].value;
+      // Generate username from the email (use the part before the @ symbol)
       const username = email.split('@')[0].toLowerCase();
+      console.log('Generated username (before check):', username);  // Debugging log
 
-      if (!username || username === '') {
-        return done(new Error('Generated username is invalid'), null); // Return error if username is invalid
-      }
+      // Check if the generated username already exists
+      let existingUser = await User.findOne({ username });
+      let finalUsername = username;
 
-      // Ensure username is unique
-      let existingUsername = await User.findOne({ username });
+      // If the username exists, append a number to make it unique
       let counter = 1;
-      while (existingUsername) {
-        username = `${username}${counter}`; // Append a number to the username
-        existingUsername = await User.findOne({ username });
+      while (existingUser) {
+        finalUsername = `${username}${counter}`;
+        existingUser = await User.findOne({ username: finalUsername });
         counter++;
       }
 
-      // Create a new user with the username and other details
-      const newUser = new User({
-        email: profile.emails[0].value,
+      console.log('Final unique username:', finalUsername);  // Debugging log
+
+      // Create new user with the generated username
+      user = new User({
+        email,
         name: profile.displayName,
         googleId: profile.id,
-        username: username, // Add the generated username
+        username: finalUsername,  // Use the unique username
       });
 
-      await newUser.save();
-      return done(null, newUser);
+      // Save the new user to the database
+      await user.save();
+      return done(null, user);
     }
+
+    // If the user already exists, just return the existing user
     return done(null, user);
   } catch (err) {
+    console.error('Error in Google Strategy:', err);
     return done(err, null);
   }
 }));
+
 
 
 passport.serializeUser((user, done) => done(null, user));
@@ -92,14 +104,15 @@ router.post('/google', async (req, res) => {
 
   // Find or create user in your database
   let user = await User.findOne({ email });
+  const username = email.split('@')[0].toLowerCase();
   if (!user) {
-    user = new User({ email, name, googleId: userId });
+    user = new User({ email, name, googleId: userId, username });
     await user.save();
   }
 
   // Generate JWT token and send it back
   const jwtToken = jwt.sign(
-    { id: user._id, email, name },
+    { id: user._id, email, name, username },
     JWT_SECRET,
     { expiresIn: '1d' }
   );

@@ -7,7 +7,6 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true, // Ensures the username is unique
     trim: true, // Trims spaces around the username
-    default: 'User',
   },
   email: {
     type: String,

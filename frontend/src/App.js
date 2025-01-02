@@ -6,20 +6,55 @@ import SelectInterests from './components/SelectInterests';
 import RegisterPage from './components/RegisterPage';
 import VideoChatPage from './components/VideoChatPage';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import WelcomePage from './components/WelcomePage';
+import ProfilePage from './components/ProfilePage';
+import { jwtDecode } from 'jwt-decode';
 
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('token') || false);
+  const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('token') || false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [username, setUsername] = useState('User');
 
-  // Check authentication status on component mount (including refresh)
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true); // User is authenticated
-    }
+    const initializeAuth = () => {
+      const token = sessionStorage.getItem('token');
+      
+      if (token) {
+        try {
+          const decodedToken = jwtDecode(token);
+          const fetchedUsername = decodedToken.username;
+          setUsername(fetchedUsername);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Error decoding token:', error);
+          sessionStorage.removeItem('token');
+          setIsAuthenticated(false);
+          setUsername('');
+        }
+      }
+      setIsLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
+  const handleLogin = (token) => {
+    try {
+      const decodedToken = jwtDecode(token);
+      setUsername(decodedToken.username);
+      setIsAuthenticated(true);
+      sessionStorage.setItem('username',decodedToken.username);
+      sessionStorage.setItem('token', token);
+    } catch (error) {
+      console.error('Error during login:', error);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>; // Or your loading component
+  }
 
   return (
     <GoogleOAuthProvider clientId={CLIENT_ID}>
@@ -28,15 +63,17 @@ function App() {
           {/* Redirect all routes other than login/register to login page if not authenticated */}
           <Route 
             path="*" 
-            element={isAuthenticated ? <Navigate to="/forum" replace /> : <Navigate to="/login" replace />} 
+            element={isAuthenticated ? <Navigate to="/welcome" replace /> : <Navigate to="/login" replace />} 
           />
-          <Route path="/login" element={<LoginPage setAuth={setIsAuthenticated} />} />
+          <Route path="/login" element={<LoginPage setAuth={setIsAuthenticated} onLoginSuccess={handleLogin} />} />
           <Route path="/register" element={<RegisterPage />} />
           
           {/* Protected Routes */}
           <Route path="/select-interests" element={isAuthenticated ? <SelectInterests /> : <Navigate to="/login" replace />} />
-          <Route path="/video-chat/:roomId" element={isAuthenticated ? <VideoChatPage /> : <Navigate to="/login" replace />} />
-          <Route path="/forum" element={isAuthenticated ? <ForumPosts /> : <Navigate to="/login" replace />} />
+          <Route path="/video-chat/:roomId" element={isAuthenticated ? <VideoChatPage username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />
+          <Route path="/forum" element={isAuthenticated ? <ForumPosts username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />
+          <Route path="/profile" element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}/>
+          <Route path="/welcome" element={isAuthenticated ? <WelcomePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </GoogleOAuthProvider>
