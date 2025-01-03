@@ -17,6 +17,13 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Middleware setup
 const middlewares = [
   cookieParser(),
@@ -35,12 +42,6 @@ const middlewares = [
 ];
 
 middlewares.forEach((middleware) => app.use(middleware));
-
-app.use(cors({
-  origin: process.env.FRONTEND_URL,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  credentials: true,
-}));
 
 app.use(session({
   secret: 'secret', // Replace with a strong secret
@@ -67,9 +68,14 @@ app.get('/', (req, res) => res.send("Welcome to the server..."));
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.FRONTEND_URL,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
+    transports: ['websocket', 'polling']
   },
+  allowEIO3: true, // Enable Socket.IO v3 compatibility
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
 const rooms = new Map();
