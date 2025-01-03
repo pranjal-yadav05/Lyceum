@@ -13,16 +13,12 @@ import topicRoutes from './routes/topics.js';
 
 dotenv.config();
 
+
 const app = express();
 const httpServer = createServer(app);
 
 // Middleware setup
 const middlewares = [
-  cors({
-    origin: process.env.FRONTEND_URL,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    credentials: true,
-  }),
   cookieParser(),
   express.json(),
   session({
@@ -39,6 +35,19 @@ const middlewares = [
 ];
 
 middlewares.forEach((middleware) => app.use(middleware));
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  credentials: true,
+}));
+
+app.use(session({
+  secret: 'secret', // Replace with a strong secret
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: process.env.NODE_ENV === 'production' } // Use secure cookies in production
+}))
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
