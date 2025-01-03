@@ -38,8 +38,17 @@ const VideoChatPage = () => {
       peer.current = new Peer(undefined, {
         host: process.env.REACT_APP_PEER_HOST,
         port: process.env.REACT_APP_PEER_PORT,
-        path: '/',
-        debug: 3
+        path: '/peerjs',
+        secure: true,
+        debug: 3,
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+          ],
+          iceCandidatePoolSize: 10
+        }
       });
 
       peer.current.on('open', (id) => {
