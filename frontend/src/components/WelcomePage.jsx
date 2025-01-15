@@ -31,7 +31,12 @@ const WelcomePage = ({ username }) => {
     const fetchStats = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get(`${API_URL}/stats`);
+        const response = await axios.get(`${API_URL}/stats`, {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
         setStats(response.data);
       } catch (error) {
         console.error("Error fetching stats:", error);
