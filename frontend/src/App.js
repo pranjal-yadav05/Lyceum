@@ -9,7 +9,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import WelcomePage from './components/WelcomePage';
 import ProfilePage from './components/ProfilePage';
 import { jwtDecode } from 'jwt-decode';
-
+import ChatPage from './components/ChatPage';
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function App() {
@@ -69,10 +69,15 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           
           {/* Protected Routes */}
+          <Route path='/chat-list' element={isAuthenticated? <ChatPage /> : <Navigate to='/login' replace/>} />
           <Route path="/select-interests" element={isAuthenticated ? <SelectInterests /> : <Navigate to="/login" replace />} />
           <Route path="/video-chat/:roomId" element={isAuthenticated ? <VideoChatPage username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />
           <Route path="/forum" element={isAuthenticated ? <ForumPosts username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />
-          <Route path="/profile" element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}/>
+          {/* <Route path="/profile" element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}/> */}
+          <Route 
+            path="/profile/:username" 
+            element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}
+          />
           <Route path="/welcome" element={isAuthenticated ? <WelcomePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />} />
         </Routes>
       </Router>

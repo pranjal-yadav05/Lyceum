@@ -2,20 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-html,body{
-    height: 100%;
-    width: 100%;
-}
-body{
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f9f9f9;
+html, body {
+  min-height: 100%;
+  width: 100%;
 }
 
-#root{
-    width: 100%;
+body {
+  background-color: #f9f9f9;
 }
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
 
 @layer base {
     :root {

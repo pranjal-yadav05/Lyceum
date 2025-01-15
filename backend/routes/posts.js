@@ -5,8 +5,9 @@ import authenticateToken from '../middleware/authenticateToken.js';
 const router = express.Router();
 
 // Create a new post
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
+    console.log('creating authenticated post')
     const post = new Post(req.body);
     await post.save();
     res.status(201).json(post);

@@ -1,15 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, Users, User, Plus, LogIn, Video } from 'lucide-react';
-import { jwtDecode } from 'jwt-decode';
+import { MessageSquare, Users, User, Plus, LogIn, Video, Menu } from 'lucide-react';
 import LeftSidebar from './LeftSidebar';
+import SearchDrawer from './SearchDrawer';
+import axios from 'axios';
+import AnimatedCounter from './AnimatedCounter';
+import LoadingSpinner from './LoadingSpinner';
 
-const WelcomePage = ({username}) => {
+const API_URL = process.env.REACT_APP_API_URL;
+
+const WelcomePage = ({ username }) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [roomId, setRoomId] = useState('');
   const navigate = useNavigate();
+  const sidebarRef = useRef(null);
+  const buttonRef = useRef(null);
+  const [stats, setStats] = useState({
+    activeTopics: 0,
+    totalPosts: 0,
+    totalStudyHours: 0,
+    activeRooms: 0
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get(`${API_URL}/stats`);
+        setStats(response.data);
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const handleJoinRoom = () => {
     if (roomId.trim()) {
@@ -22,31 +54,82 @@ const WelcomePage = ({username}) => {
     navigate(`/video-chat/${newRoomId}`);
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-[#0f0a1f]">
-      <LeftSidebar />
-      
-      {/* Scrollable main content */}
-      <div className="flex-1 min-w-0 ml-16 overflow-y-auto">
-        <div className="p-4 md:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto min-w-[280px]">
-            {/* Header */}
-            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8">
-              <h1 className="text-2xl md:text-3xl font-bold text-white">Welcome, {username}! 👋</h1>
-              <Button 
-                variant="outline" 
-                className="bg-purple-600 hover:bg-purple-700 whitespace-nowrap"
-                onClick={() => navigate('/profile')}
-              >
-                <User className="mr-2 h-4 w-4" />
-                Profile
-              </Button>
-            </header>
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
+  };
 
-            {/* Main cards grid */}
+  const openSearchDrawer = () => {
+    setIsSearchDrawerOpen(true);
+  };
+
+  const closeSearchDrawer = () => {
+    setIsSearchDrawerOpen(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isSidebarOpen &&
+          sidebarRef.current &&
+          !sidebarRef.current.contains(event.target) &&
+          buttonRef.current &&
+          !buttonRef.current.contains(event.target)) {
+        closeSidebar();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSidebarOpen]);
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen bg-[#0f0a1f] text-white">
+      <div className="md:relative">
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-20 md:hidden" 
+            onClick={closeSidebar}
+          />
+        )}
+        
+        <LeftSidebar 
+          isSidebarOpen={isSidebarOpen} 
+          closeSidebar={closeSidebar}
+          openSearchDrawer={openSearchDrawer}
+          ref={sidebarRef}
+          className={`fixed md:relative z-30 h-full transition-transform duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          }`}
+        />
+      </div>
+      
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
+        isSidebarOpen ? 'md:ml-64' : ''
+      }`}>
+        <div className="flex-1 p-4 md:p-6 md:ml-16 overflow-y-auto min-h-screen">
+          <div className="max-w-6xl mx-auto">
+            {/* Header with welcome message */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <Button
+                    ref={buttonRef}
+                    className="md:hidden mr-4 bg-purple-600 hover:bg-purple-700"
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                  >
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                  <h1 className="text-2xl font-bold">Welcome, {username}! 👋</h1>
+                </div>
+              </div>
+            </div>
+
+            {/* Main content */}
             <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6 md:mb-8">
               {/* Video Chat Card */}
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
+              <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
                     <Video className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -59,6 +142,7 @@ const WelcomePage = ({username}) => {
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value)}
                     className="bg-[#2a2435] border-purple-600/20 text-white"
+                    aria-label="Room ID"
                   />
                   <div className="flex flex-col xs:flex-row gap-2">
                     <Button 
@@ -81,7 +165,7 @@ const WelcomePage = ({username}) => {
               </Card>
 
               {/* Discussion Forums Card */}
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
+              <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
                     <MessageSquare className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -102,7 +186,7 @@ const WelcomePage = ({username}) => {
               </Card>
 
               {/* Study Groups Card */}
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
+              <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
                     <Users className="mr-2 h-5 w-5 flex-shrink-0" />
@@ -125,30 +209,44 @@ const WelcomePage = ({username}) => {
 
             {/* Stats cards */}
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Active Forums</h3>
-                  <p className="text-3xl font-bold text-purple-400">12</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Study Hours</h3>
-                  <p className="text-3xl font-bold text-purple-400">24</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-[#1a1425] border-purple-600/20 min-w-[250px]">
-                <CardContent className="pt-6">
-                  <h3 className="text-lg font-semibold text-white mb-2">Active Rooms</h3>
-                  <p className="text-3xl font-bold text-purple-400">5</p>
-                </CardContent>
-              </Card>
+              {isLoading ? (
+                Array(3).fill(0).map((_, index) => (
+                  <Card key={index} className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
+                      <LoadingSpinner />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <>
+                  <Card className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold text-white mb-2">Active Topics</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.activeTopics} /></div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Study Hours</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalStudyHours} /></div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Posts</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalPosts} /></div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
+      <SearchDrawer isOpen={isSearchDrawerOpen} onClose={closeSearchDrawer} API_URL={API_URL} />
     </div>
   );
 };
 
 export default WelcomePage;
+

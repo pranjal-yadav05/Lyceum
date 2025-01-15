@@ -9,7 +9,7 @@ import User from '../models/User.js'; // Adjust to your User model
 const router = express.Router();
 dotenv.config();
 
-const JWT_SECRET = 'Lyceum'; // Replace with a secure secret
+const JWT_SECRET = process.env.JWT_SECRET; // Replace with a secure secret
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 console.log('Setting up passport strategy...');
@@ -179,7 +179,7 @@ router.post('/login', async (req, res) => {
     // Generate JWT
     const token = jwt.sign(
       { id: user._id, email: user.email, username: user.username },
-      'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '1h' } // Token expiration
     );
 

@@ -7,6 +7,7 @@ import { Button } from "./ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
+import LoadingSpinner from './LoadingSpinner';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -14,9 +15,11 @@ function LoginPage({ setAuth, onLoginSuccess }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleGoogleLoginSuccess = async (response) => {
+    setIsLoading(true);
     try {
       const token = response.credential;
       const res = await axios.post(`${API_URL}/auth/google`, { token });
@@ -25,6 +28,8 @@ function LoginPage({ setAuth, onLoginSuccess }) {
       navigate('/welcome');
     } catch (err) {
       setError('Google login failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -46,6 +51,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const response = await axios.post(`${API_URL}/auth/login`, { identifier, password });
       onLoginSuccess(response.data.token)
@@ -53,6 +59,8 @@ function LoginPage({ setAuth, onLoginSuccess }) {
       navigate('/welcome');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,7 +101,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
               </div>
             </div>
             <Button type="submit" className="w-full mt-6 bg-purple-600 hover:bg-purple-700">
-              Login
+              {isLoading ? <LoadingSpinner /> : 'Login'}
             </Button>
           </form>
         </CardContent>
