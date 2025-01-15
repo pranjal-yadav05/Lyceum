@@ -22,8 +22,7 @@ const WelcomePage = ({ username }) => {
   const [stats, setStats] = useState({
     activeTopics: 0,
     totalPosts: 0,
-    totalStudyHours: 0,
-    activeRooms: 0
+    totalStudyHours: 0
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,9 +34,13 @@ const WelcomePage = ({ username }) => {
           withCredentials: true,
           headers: {
             'Content-Type': 'application/json',
-          }
+          },
+          timeout: 5000 
         });
-        setStats(response.data);
+        setStats(prevStats => ({
+          ...prevStats,
+          ...response.data
+        }));
       } catch (error) {
         console.error("Error fetching stats:", error);
       } finally {

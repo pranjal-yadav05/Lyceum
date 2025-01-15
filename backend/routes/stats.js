@@ -3,36 +3,54 @@ import Topic from '../models/Topic.js';
 import Post from '../models/Post.js';
 import StudySession from '../models/StudySession.js';
 import axios from 'axios';
+import NodeCache from 'node-cache';
+import dotenv from 'dotenv';
+
+dotenv.config()
 
 const router = express.Router();
+const cache = new NodeCache({ stdTTL: 300 }); // Cache for 5 minutes
 
 router.get('/', async (req, res) => {
-  res.header('Access-Control-Allow-Origin', 'https://lyceum-one.vercel.app');
+  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL);
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
-    const activeTopics = await Topic.countDocuments();
-    const totalPosts = await Post.countDocuments();
+    let stats = cache.get('stats');
+    if (stats) {
+      return res.json(stats);
+    }
 
-    // Calculate total study hours
-    const studySessions = await StudySession.find();
-    const totalStudyHours = studySessions.reduce((total, session) => {
-      return total + (session.duration / 60); // Convert minutes to hours
-    }, 0);
-    
+    const [activeTopics, totalPosts, studySessions] = await Promise.all([
+      Topic.countDocuments(),
+      Post.countDocuments(),
+      StudySession.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalDuration: { $sum: '$duration' }
+          }
+        }
+      ])
+    ]);
 
-    // Fetch active rooms count from socket server
-    const socketServerUrl = process.env.SOCKET_SERVER_URL;
-    const activeRoomsResponse = await axios.get(`${socketServerUrl}/active-rooms`);
-    const activeRooms = activeRoomsResponse.data.activeRooms;
-    
-    res.json({
+    const totalStudyHours = Math.round((studySessions[0]?.totalDuration || 0) / 60);
+
+    stats = {
       activeTopics,
       totalPosts,
-      totalStudyHours: Math.round(totalStudyHours),
-      activeRooms
-    });
+      totalStudyHours
+    };
+
+    cache.set('stats', stats);
+
+    res.json(stats);
   } catch (error) {
     console.error('Error fetching stats:', error);
     res.status(500).json({ message: "Error fetching stats", error: error.message });
