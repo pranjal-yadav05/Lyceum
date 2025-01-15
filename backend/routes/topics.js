@@ -78,18 +78,17 @@ router.patch('/topics/:id', async (req, res) => {
 });
 
 // Delete a topic
-router.delete('/topics/:id', async (req, res) => {
+router.delete('/topics/:id', authenticateToken, async (req, res) => {
   try {
     const topic = await Topic.findOne({ _id: req.params.id });
     if (!topic) {
       return res.status(404).json({ message: 'Topic not found' });
     }
     
-    const username = req.headers['x-username'];
     // Check if user is the author
-    if (topic.author !== username) {
-        return res.status(403).json({ message: 'Not authorized to delete this topic' });
-      }
+    if (topic.author !== req.user.username) {
+      return res.status(403).json({ message: 'Not authorized to delete this topic' });
+    }
 
     await Topic.findByIdAndDelete(req.params.id);
     // Delete all posts in the topic
