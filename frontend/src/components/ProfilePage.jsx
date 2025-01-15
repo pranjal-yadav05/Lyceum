@@ -159,31 +159,28 @@ const ProfilePage = () => {
 
     const file = event.target.files[0];
     if (!file) return;
-  
+
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
       alert('Invalid file type. Please upload a JPEG, PNG, or GIF image.');
       return;
     }
-  
+
     if (file.size > 5 * 1024 * 1024) {
       alert('File too large. Maximum size is 5MB.');
       return;
     }
     const token = sessionStorage.getItem('token')
     const formData = new FormData();
-    formData.append(imageType, file);
-  
+    formData.append(imageType === 'profile-image' ? 'profile-image' : 'cover-image', file);
+
     try {
       if (!token) {
         console.error('No token found');
         navigate('/login');
         return;
       }
-  
-      console.log('Uploading file with type:', imageType);
-      console.log('FormData entries:', [...formData.entries()]);
-  
+
       setIsUploading(true);
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/user/${imageType}`,
@@ -196,18 +193,16 @@ const ProfilePage = () => {
         }
       );
       
-      setUser(prevUser => ({ ...prevUser, [imageType]: response.data.imagePath }));
+      console.log('Image upload response:', response.data);
 
-      await fetchUserProfile();
+      setUser(prevUser => ({ 
+        ...prevUser, 
+        [imageType === 'profile-image' ? 'profileImage' : 'coverImage']: response.data.url 
+      }));
 
     } catch (error) {
-      console.error('Full error object:', error);
-      if (error.response) {
-        console.error('Error response:', error.response.data);
-        alert(error.response.data.message || 'Error uploading image');
-      } else {
-        alert('Error uploading image');
-      }
+      console.error('Error uploading image:', error);
+      alert('Error uploading image');
       
       if (error.response?.status === 401) {
         navigate('/login');
@@ -222,12 +217,9 @@ const ProfilePage = () => {
     setIsButtonVisible(true);
   };
 
-  const getImageUrl = (imagePath) => {
-    // If path is empty or undefined, return null
-    if (!imagePath) return null;
-    
-    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-    return `${process.env.REACT_APP_BACKEND_URL}/${cleanPath}`;
+  const getImageUrl = (imageUrl, type) => {
+    if (imageUrl) return imageUrl;
+    return type === 'profile' ? '/images/defaultProfile.jpg' : '/images/defaultCover.jpg';
   };
 
   const handleImageError = (e) => {
@@ -282,7 +274,7 @@ const ProfilePage = () => {
             </Button>
             <div className="h-48 md:h-64 rounded-lg overflow-hidden relative">
               <img
-                src={getImageUrl(user.coverImage)}
+                src={getImageUrl(user.coverImage, 'cover')}
                 alt="Profile cover"
                 className="w-full h-full object-cover"
               />
@@ -303,7 +295,7 @@ const ProfilePage = () => {
             <div className="absolute bottom-0 left-4 transform translate-y-1/2 flex items-end">
               <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-[#0f0a1f] overflow-hidden bg-[#1a1425] relative group">
                 <img
-                  src={getImageUrl(user.profileImage)}
+                  src={getImageUrl(user.profileImage, 'profile')}
                   alt="Profile picture"
                   className="w-full h-full object-cover"
                 />
@@ -392,7 +384,7 @@ const ProfilePage = () => {
                     {friends.map((friend, index) => (
                       <div key={index} className="flex flex-col items-center">
                         <img
-                          src={getImageUrl(friend.profileImage)}
+                          src={getImageUrl(friend.profileImage) || "/placeholder.svg"}
                           alt={friend.username}
                           className="w-16 h-16 rounded-full object-cover mb-2"
                           onError={(e) => {

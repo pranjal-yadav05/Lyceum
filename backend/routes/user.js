@@ -1,21 +1,16 @@
 import express from 'express';
 import multer from 'multer';
-import path from 'path';
+import { put } from '@vercel/blob';
 import User from '../models/User.js';
+import { config } from 'dotenv';
 import authenticateToken from '../middleware/authenticateToken.js';
+
+config();
 
 const router = express.Router();
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Update profile image
@@ -25,16 +20,27 @@ router.post('/profile-image', authenticateToken, upload.single('profile-image'),
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    console.log('updating profile image')
     const userId = req.user.id;
-    const imagePath = `/uploads/${req.file.filename}`;
+    const buffer = req.file.buffer;
+    const filename = `profile-${Date.now()}-${userId}`;
 
-    await User.findByIdAndUpdate(userId, { profileImage: imagePath });
-    console.log('profile image updated')
-    res.json({ message: 'Profile image updated successfully', imagePath });
+    // Upload to Vercel Blob Storage
+    const blob = await put(filename, buffer, {
+      access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      contentType: req.file.mimetype
+    });
+
+    // Update user's profile image URL in the database
+    await User.findByIdAndUpdate(userId, { profileImage: blob.url });
+
+    res.json({ 
+      message: 'Profile image updated successfully',
+      url: blob.url 
+    });
   } catch (error) {
     console.error('Error updating profile image:', error);
-    res.status(500).json({ message: 'Error updating profile image' });
+    res.status(500).json({ message: 'Error updating profile image', error: error.message });
   }
 });
 
@@ -46,14 +52,26 @@ router.post('/cover-image', authenticateToken, upload.single('cover-image'), asy
     }
 
     const userId = req.user.id;
-    const imagePath = `/uploads/${req.file.filename}`;
+    const buffer = req.file.buffer;
+    const filename = `cover-${Date.now()}-${userId}`;
 
-    await User.findByIdAndUpdate(userId, { coverImage: imagePath });
+    // Upload to Vercel Blob Storage
+    const blob = await put(filename, buffer, {
+      access: 'public',
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      contentType: req.file.mimetype
+    });
 
-    res.json({ message: 'Cover image updated successfully', imagePath });
+    // Update user's cover image URL in the database
+    await User.findByIdAndUpdate(userId, { coverImage: blob.url });
+
+    res.json({ 
+      message: 'Cover image updated successfully',
+      url: blob.url 
+    });
   } catch (error) {
     console.error('Error updating cover image:', error);
-    res.status(500).json({ message: 'Error updating cover image' });
+    res.status(500).json({ message: 'Error updating cover image', error: error.message });
   }
 });
 
@@ -69,7 +87,7 @@ router.get('/profile/:username', async (req, res) => {
     res.json(user);
   } catch (error) {
     console.error('Error fetching user profile:', error);
-    res.status(500).json({ message: 'Error fetching user profile' });
+    res.status(500).json({ message: 'Error fetching user profile', error: error.message });
   }
 });
 
@@ -78,12 +96,13 @@ router.get('/', async (req, res) => {
   if (!query) return res.status(400).json({ error: 'Query is required' });
 
   try {
-    const users = await User.find({ username: { $regex: query, $options: 'i' } });
+    const users = await User.find({ username: { $regex: query, $options: 'i' } }).select('-password');
     res.json(users);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal Server Error' });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 });
 
 export default router;
+

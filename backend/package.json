@@ -9,6 +9,7 @@
     "dev": "nodemon index.js"
   },
   "dependencies": {
+    "@vercel/blob": "^0.27.0",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cookie-parser": "^1.4.7",
@@ -25,6 +26,7 @@
     "passport-google-oauth20": "^2.0.0",
     "peer": "^1.0.2",
     "socket.io": "^4.8.1",
+    "util": "^0.12.5",
     "uuid": "^11.0.3"
   },
   "devDependencies": {

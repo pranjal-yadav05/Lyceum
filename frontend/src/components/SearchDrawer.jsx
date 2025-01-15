@@ -54,13 +54,11 @@ const SearchDrawer = ({ isOpen, onClose, API_URL }) => {
     onClose();
   };
 
-  const getImageUrl = (imagePath) => {
-    // If path is empty or undefined, return null
-    if (!imagePath) return null;
-    
-    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
-    return `${process.env.REACT_APP_BACKEND_URL}/${cleanPath}`;
+  const getImageUrl = (imageUrl, type) => {
+    if (imageUrl) return imageUrl;
+    return type === 'profile' ? '/images/defaultProfile.jpg' : '/images/defaultCover.jpg';
   };
+
 
   return (
     <div className={`fixed inset-y-0 right-0 w-full sm:w-96 bg-[#1a1425] shadow-lg transform transition-transform duration-300 ease-in-out z-50 ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -89,11 +87,22 @@ const SearchDrawer = ({ isOpen, onClose, API_URL }) => {
               {searchResults.map((user) => (
                 <li
                   key={user.username}
-                  className="flex items-center p-2 hover:bg-purple-600/20 rounded-lg cursor-pointer transition-colors"
+                  className="flex items-center p-2 hover:bg-purple-600/20 rounded-lg cursor-pointer transition-colors relative overflow-hidden h-16"
                   onClick={() => handleUserClick(user.username)}
+                  style={{
+                    backgroundImage: `linear-gradient(rgba(26, 20, 37, 0.8), rgba(26, 20, 37, 0.8)), url(${getImageUrl(user.coverImage, 'cover')})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                  }}
                 >
-                  <img className="h-8 w-8 mr-3 rounded-lg" src={getImageUrl(user.profileImage)}/>
-                  <span className="text-white">{user.username}</span>
+                  <div className="relative z-10 flex items-center">
+                    <img 
+                      className="h-8 w-8 mr-3 rounded-lg" 
+                      src={getImageUrl(user.profileImage, 'profile')}
+                      alt={user.username}
+                    />
+                    <span className="text-white">{user.username}</span>
+                  </div>
                 </li>
               ))}
             </ul>

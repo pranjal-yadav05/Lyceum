@@ -27,8 +27,8 @@ const userSchema = new mongoose.Schema({
     sparse: true,
   },
 
-  profileImage: { type: String, default: '/uploads/default.jpg' },
-  coverImage: { type: String, default: '/upload/deafultCover.jpg' },
+  profileImage: { type: String, default: null },
+  coverImage: { type: String, default: null },
 
   // Add friends and friend requests
   friendRequests: [{
