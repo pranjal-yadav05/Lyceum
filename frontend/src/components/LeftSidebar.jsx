@@ -31,7 +31,7 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
     { icon: Home, title: 'Home', path: '/welcome' },
     { icon: LayoutGrid, title: 'Forums', path: '/forum' },
     { icon: Globe, title: 'Global', path: '#' },
-    { icon: MessageSquare, title: 'Messages', path: '/chat-list' },
+    // { icon: MessageSquare, title: 'Messages', path: '/chat-list' },
     { icon: Search, title: 'Search', onClick: openSearchDrawer },
   ];
 
