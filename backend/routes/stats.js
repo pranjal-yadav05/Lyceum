@@ -7,6 +7,10 @@ import axios from 'axios';
 const router = express.Router();
 
 router.get('/', async (req, res) => {
+  res.header('Access-Control-Allow-Origin', 'https://lyceum-one.vercel.app');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   try {
     const activeTopics = await Topic.countDocuments();
     const totalPosts = await Post.countDocuments();
