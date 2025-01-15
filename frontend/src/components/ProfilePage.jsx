@@ -380,19 +380,26 @@ const ProfilePage = () => {
             <CardContent>
                 <h3 className="text-xl font-semibold mb-4">Friends</h3>
                 {friends.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {friends.map((friend, index) => (
-                      <div key={index} className="flex flex-col items-center">
-                        <img
-                          src={getImageUrl(friend.profileImage) || "/placeholder.svg"}
-                          alt={friend.username}
-                          className="w-16 h-16 rounded-full object-cover mb-2"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.src = '/default-profile.png';
-                          }}
-                        />
-                        <span className="text-sm">{friend.username}</span>
+                      <div
+                        key={index}
+                        className="relative overflow-hidden h-24 rounded-lg cursor-pointer transition-all hover:scale-105"
+                        onClick={() => navigate(`/profile/${friend.username}`)}
+                        style={{
+                          backgroundImage: `linear-gradient(rgba(26, 20, 37, 0.7), rgba(26, 20, 37, 0.7)), url(${getImageUrl(friend.coverImage, 'cover')})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center'
+                        }}
+                      >
+                        <div className="absolute inset-0 flex items-center p-4">
+                          <img
+                            src={getImageUrl(friend.profileImage, 'profile') || "/placeholder.svg"}
+                            alt={friend.username}
+                            className="w-12 h-12 rounded-full object-cover mr-4 border-2 border-purple-500"
+                          />
+                          <span className="text-white font-semibold">{friend.username}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
