@@ -81,7 +81,7 @@ router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/' }),
   (req, res) => {
     const user = req.user;
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 
     // Send token as response (frontend will handle it)
     res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}`);
@@ -114,7 +114,7 @@ router.post('/google', async (req, res) => {
   const jwtToken = jwt.sign(
     { id: user._id, email, name, username },
     JWT_SECRET,
-    { expiresIn: '1d' }
+    { expiresIn: '7d' }
   );
 
   res.json({ token: jwtToken }); // Send JWT back to frontend
@@ -180,7 +180,7 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user._id, email: user.email, username: user.username },
       JWT_SECRET,
-      { expiresIn: '1h' } // Token expiration
+      { expiresIn: '7d' } // Token expiration
     );
 
     res.json({ token });

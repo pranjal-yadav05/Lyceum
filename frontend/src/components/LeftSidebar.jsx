@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { LayoutGrid, MessageSquare, Globe, BarChart, BookOpen, User, LogOut, Search, Home } from 'lucide-react';
 import {
@@ -11,6 +11,7 @@ import {
 
 const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer }, ref) => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -34,6 +35,11 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
     // { icon: MessageSquare, title: 'Messages', path: '/chat-list' },
     { icon: Search, title: 'Search', onClick: openSearchDrawer },
   ];
+
+  const isActive = (path) => {
+    if (path === '#') return false;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   return (
     <TooltipProvider>
@@ -68,7 +74,11 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
                   variant="ghost" 
                   size="sm"
                   onClick={() => item.onClick ? item.onClick() : handleNavigation(item.path)} 
-                  className="w-full text-gray-400 hover:text-black justify-start md:justify-center"
+                  className={`w-full justify-start md:justify-center transition-colors duration-200 ${
+                    isActive(item.path) 
+                      ? 'text-purple-500 bg-purple-500/10 hover:bg-purple-500/20' 
+                      : 'text-gray-400 hover:text-black hover:bg-gray-200'
+                  }`}
                 >
                   <item.icon size={20} className="mr-2 md:mr-0" />
                   <span className="md:hidden">{item.title}</span>
@@ -89,7 +99,11 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
                 variant="ghost" 
                 size="sm"
                 onClick={() => handleProfileNavigation()}
-                className="w-full text-gray-400 hover:text-black justify-start md:justify-center"
+                className={`w-full justify-start md:justify-center transition-colors duration-200 ${
+                  location.pathname.startsWith('/profile') 
+                    ? 'text-purple-500 bg-purple-500/10 hover:bg-purple-500/20' 
+                    : 'text-gray-400 hover:text-black hover:bg-gray-200'
+                }`}
               >
                 <User size={20} className="mr-2 md:mr-0" />
                 <span className="md:hidden">Profile</span>
@@ -106,7 +120,7 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
                 variant="ghost" 
                 size="sm"
                 onClick={handleLogout}
-                className="w-full text-gray-400 hover:text-black justify-start md:justify-center"
+                className="w-full text-gray-400 hover:text-black hover:bg-gray-200 justify-start md:justify-center"
               >
                 <LogOut size={20} className="mr-2 md:mr-0" />
                 <span className="md:hidden">Logout</span>

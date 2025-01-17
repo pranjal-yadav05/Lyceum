@@ -42,6 +42,41 @@ router.get('/topics', async (req, res) => {
   }
 });
 
+
+// Get a specific topic by ID
+router.get('/topics/:id', async (req, res) => {
+  try {
+    const topic = await Topic.findById(req.params.id).lean();
+    
+    if (!topic) {
+      return res.status(404).json({ message: 'Topic not found' });
+    }
+
+    // Get post count for the topic
+    const postsCount = await Post.countDocuments({ topicId: topic._id });
+    
+    // Get the latest post in the topic
+    const latestPost = await Post.findOne({ topicId: topic._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Combine topic data with additional information
+    const topicWithDetails = {
+      ...topic,
+      postsCount,
+      latestPost: latestPost || null
+    };
+
+    res.json(topicWithDetails);
+  } catch (error) {
+    // Handle invalid ID format
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid topic ID format' });
+    }
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Get topics by category
 router.get('/topics/category/:category', async (req, res) => {
   try {
@@ -126,7 +161,7 @@ router.post('/topics/:topicId/posts',async (req, res) => {
 router.get('/topics/:topicId/posts', async (req, res) => {
   try {
     const posts = await Post.find({ topicId: req.params.topicId })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: 1 });
     res.json(posts);
   } catch (error) {
     res.status(500).json({ message: error.message });

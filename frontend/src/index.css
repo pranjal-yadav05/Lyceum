@@ -18,6 +18,30 @@ body {
   flex-direction: column;
 }
 
+/* Customizing scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1425;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4a4058;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5a5068;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4a4058 #1a1425;
+}
+
 
 @layer base {
     :root {
