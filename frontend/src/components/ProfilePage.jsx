@@ -22,7 +22,7 @@ const ProfilePage = () => {
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const currentUsername = sessionStorage.getItem('username');
+  const currentUsername = localStorage.getItem('username');
 
   useEffect(() => {
     fetchUserProfile();
@@ -35,7 +35,7 @@ const ProfilePage = () => {
   const fetchUserProfile = async () => {
     setIsLoading(true);
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.error('No token found');
         navigate('/login');
@@ -68,7 +68,7 @@ const ProfilePage = () => {
 
   const checkFriendRequestStatus = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.error('No token found');
         return;
@@ -87,7 +87,7 @@ const ProfilePage = () => {
 
   const fetchFriends = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API_URL}/friends/friends/${username}`,{
         headers: {
           Authorization: `Bearer ${token}`
@@ -101,7 +101,7 @@ const ProfilePage = () => {
 
   const handleFriendRequest = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       if (!token) {
         console.error('No token found');
         navigate('/login');
@@ -122,7 +122,7 @@ const ProfilePage = () => {
 
   const sendFriendRequest = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.post(`${API_URL}/friends/send`, {
         senderId: currentUsername,
         receiverId: username
@@ -139,7 +139,7 @@ const ProfilePage = () => {
 
   const removeFriendRequest = async () => {
     try {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       await axios.post(`${API_URL}/friends/remove-request`, {
         senderId: currentUsername,
         receiverId: username
@@ -170,7 +170,7 @@ const ProfilePage = () => {
       alert('File too large. Maximum size is 5MB.');
       return;
     }
-    const token = sessionStorage.getItem('token')
+    const token = localStorage.getItem('token')
     const formData = new FormData();
     formData.append(imageType === 'profile-image' ? 'profile-image' : 'cover-image', file);
 

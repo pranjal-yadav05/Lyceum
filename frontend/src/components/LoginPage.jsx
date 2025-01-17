@@ -42,7 +42,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
     const token = urlParams.get('token');
 
     if (token) {
-      sessionStorage.setItem('token', token);
+      localStorage.setItem('token', token);
       onLoginSuccess(token)
       setAuth(true);
       navigate('/welcome');

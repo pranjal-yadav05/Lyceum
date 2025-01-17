@@ -19,12 +19,12 @@
     const peersRef = useRef([]);
     const myStreamRef = useRef();
     const [mediaState, setMediaState] = useState(() => {
-      const savedState = sessionStorage.getItem('mediaState');
+      const savedState = localStorage.getItem('mediaState');
       return savedState ? JSON.parse(savedState) : { video: true, audio: true };
     });
 
     useEffect(() => {
-      const storedUsername = sessionStorage.getItem('username');
+      const storedUsername = localStorage.getItem('username');
       setUserName(storedUsername);
 
       const addr = process.env.REACT_APP_SOCKET_URL;
@@ -207,7 +207,7 @@
           audioTrack.enabled = newAudioState;
           const newMediaState = { ...mediaState, audio: newAudioState };
           setMediaState(newMediaState);
-          sessionStorage.setItem('mediaState', JSON.stringify(newMediaState));
+          localStorage.setItem('mediaState', JSON.stringify(newMediaState));
           
           socket.current.emit('media-state-changed', {
             roomId,
@@ -226,7 +226,7 @@
           videoTrack.enabled = newVideoState;
           const newMediaState = { ...mediaState, video: newVideoState };
           setMediaState(newMediaState);
-          sessionStorage.setItem('mediaState', JSON.stringify(newMediaState));
+          localStorage.setItem('mediaState', JSON.stringify(newMediaState));
           
           socket.current.emit('media-state-changed', {
             roomId,

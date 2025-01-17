@@ -13,13 +13,13 @@ import ChatPage from './components/ChatPage';
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('token') || false);
+  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('token') || false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState('User');
 
   useEffect(() => {
     const initializeAuth = () => {
-      const token = sessionStorage.getItem('token');
+      const token = localStorage.getItem('token');
       
       if (token) {
         try {
@@ -29,7 +29,7 @@ function App() {
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Error decoding token:', error);
-          sessionStorage.removeItem('token');
+          localStorage.removeItem('token');
           setIsAuthenticated(false);
           setUsername('');
         }
@@ -45,8 +45,8 @@ function App() {
       const decodedToken = jwtDecode(token);
       setUsername(decodedToken.username);
       setIsAuthenticated(true);
-      sessionStorage.setItem('username',decodedToken.username);
-      sessionStorage.setItem('token', token);
+      localStorage.setItem('username',decodedToken.username);
+      localStorage.setItem('token', token);
     } catch (error) {
       console.error('Error during login:', error);
     }

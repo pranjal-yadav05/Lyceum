@@ -29,7 +29,7 @@ function RegisterPage() {
 
     try {
       const response = await axios.post(`${API_URL}/auth/register`, { username, email, password });
-      sessionStorage.setItem('token', response.data.token);
+      localStorage.setItem('token', response.data.token);
       navigate('/select-interests');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');

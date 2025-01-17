@@ -8,7 +8,7 @@ const API_URL = process.env.REACT_APP_API_URL;
 
 const FriendRequests = () => {
     const [friendRequests, setFriendRequests] = useState([]);
-    const currentUsername = sessionStorage.getItem('username');
+    const currentUsername = localStorage.getItem('username');
   
     useEffect(() => {
       fetchFriendRequests();
@@ -16,7 +16,7 @@ const FriendRequests = () => {
   
     const fetchFriendRequests = async () => {
       try {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         if (!token) {
           console.error('No token found');
           return;
@@ -35,7 +35,7 @@ const FriendRequests = () => {
   
     const handleAcceptRequest = async (senderUsername) => {
       try {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         if (!token) {
           console.error('No token found');
           return;
@@ -57,7 +57,7 @@ const FriendRequests = () => {
   
     const handleDeclineRequest = async (senderUsername) => {
       try {
-        const token = sessionStorage.getItem('token');
+        const token = localStorage.getItem('token');
         if (!token) {
           console.error('No token found');
           return;

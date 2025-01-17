@@ -13,12 +13,12 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
   const navigate = useNavigate();
   
   const handleLogout = () => {
-    sessionStorage.removeItem('token');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
   const handleProfileNavigation = () => {
-    const username = sessionStorage.getItem('username');
+    const username = localStorage.getItem('username');
     navigate(`/profile/${username}`);
   }
 

@@ -111,7 +111,7 @@ export default function ForumPosts({username}) {
   };
 
   const handleDeleteTopic = async (topicId) => {
-    const token = sessionStorage.getItem('token')
+    const token = localStorage.getItem('token')
     try {
       await axios.delete(`${API_URL}/topics/${topicId}`,{
         headers: {
@@ -126,7 +126,7 @@ export default function ForumPosts({username}) {
   };
 
   const handleDeletePost = async (postId) => {
-    const token = sessionStorage.getItem('token')
+    const token = localStorage.getItem('token')
     try {
       await axios.delete(`${API_URL}/posts/${postId}`, {
         headers: {
