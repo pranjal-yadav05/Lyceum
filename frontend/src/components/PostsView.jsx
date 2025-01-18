@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { useNavigate } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -32,6 +33,7 @@ export default function PostsView({ topicId, username, onClose }) {
   const scrollAreaRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollViewportRef = useRef(null);
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchTopic();
@@ -235,7 +237,7 @@ export default function PostsView({ topicId, username, onClose }) {
                   } max-w-[80%]`}
               >
                 <div className="flex items-start mb-2">
-                  <Avatar className="w-8 h-8 mr-2">
+                  <Avatar className="w-8 h-8 mr-2 cursor-pointer" onClick={() => navigate(`/profile/${post.author}`)}>
                     {post.profileImage ? (
                       <AvatarImage src={post.profileImage} alt={post.author} />
                     ) : (
@@ -244,7 +246,7 @@ export default function PostsView({ topicId, username, onClose }) {
                   </Avatar>
                   <div className="flex-grow">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold">{post.author}</span>
+                      <span className="font-semibold cursor-pointer" onClick={() => navigate(`/profile/${post.author}`)}>{post.author}</span>
                       <span className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleString()}</span>
                     </div>
                     {post.replyTo && (
