@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, Users, Plus, LogIn, Video } from 'lucide-react';
+import { MessageSquare, Users, Plus, LogIn, Video, Menu } from 'lucide-react';
+
 
 import LeftSidebar from './LeftSidebar';
 import SearchDrawer from './SearchDrawer';
@@ -120,6 +121,15 @@ const WelcomePage = ({ username }) => {
           <div className="max-w-6xl mx-auto">
             {/* Centered welcome message */}
             <div className="flex flex-col items-center justify-center flex-grow py-8 mb-8">
+              <Button
+                ref={buttonRef}
+                className="md:hidden fixed top-4 left-4 bg-purple-600 hover:bg-purple-700 z-20"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
+
 
 
 
