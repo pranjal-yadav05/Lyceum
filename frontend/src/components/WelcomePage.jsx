@@ -133,14 +133,13 @@ const WelcomePage = ({ username }) => {
 
 
 
-              <h1 className="text-6xl font-bold bg-gradient-to-t from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4 animate-fade-in px-6 py-3">
-
-
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-t from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4 animate-fade-in px-4 md:px-6 py-2 md:py-3">
                 Hello {username},
               </h1>
-              <h2 className="text-4xl font-bold text-gray-300 animate-slide-up">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-300 animate-slide-up">
                 Welcome to Lyceum! 👋
               </h2>
+
 
             </div>
 
