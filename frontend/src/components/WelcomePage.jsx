@@ -24,8 +24,10 @@ const WelcomePage = ({ username }) => {
   const [stats, setStats] = useState({
     activeTopics: 0,
     totalPosts: 0,
-    totalStudyHours: 0
+    totalStudyHours: 0,
+    totalVisitors: 0
   });
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -120,7 +122,8 @@ const WelcomePage = ({ username }) => {
         <div className="flex-1 p-4 md:p-6 md:ml-16 overflow-y-auto min-h-screen">
           <div className="max-w-6xl mx-auto">
             {/* Centered welcome message */}
-            <div className="flex flex-col items-center justify-center flex-grow py-8 mb-8">
+              <div className="flex flex-col items-center justify-center flex-grow py-8 mb-8 mt-16 md:mt-0">
+
               <Button
                 ref={buttonRef}
                 className="md:hidden fixed top-4 left-4 bg-purple-600 hover:bg-purple-700 z-20"
@@ -225,9 +228,9 @@ const WelcomePage = ({ username }) => {
             </div>
 
             {/* Stats cards */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {isLoading ? (
-                Array(3).fill(0).map((_, index) => (
+                Array(4).fill(0).map((_, index) => (
                   <Card key={index} className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
                       <LoadingSpinner />
@@ -244,16 +247,24 @@ const WelcomePage = ({ username }) => {
                   </Card>
                   <Card className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Posts</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalPosts} /></div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
                       <h3 className="text-lg font-semibold text-white mb-2">Total Study Hours</h3>
                       <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalStudyHours} /></div>
                     </CardContent>
                   </Card>
                   <Card className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
-                      <h3 className="text-lg font-semibold text-white mb-2">Total Posts</h3>
-                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalPosts} /></div>
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Visitors</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalVisitors} /></div>
                     </CardContent>
                   </Card>
+
+
                 </>
               )}
             </div>

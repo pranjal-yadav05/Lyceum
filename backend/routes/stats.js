@@ -2,6 +2,8 @@ import express from 'express';
 import Topic from '../models/Topic.js';
 import Post from '../models/Post.js';
 import StudySession from '../models/StudySession.js';
+import Visitor from '../models/Visitor.js';
+import User from '../models/User.js';
 import axios from 'axios';
 import NodeCache from 'node-cache';
 import dotenv from 'dotenv';
@@ -27,6 +29,16 @@ router.get('/', async (req, res) => {
       return res.json(stats);
     }
 
+    // Record visit using IP and user agent
+    const ip = req.ip;
+    const userAgent = req.headers['user-agent'];
+    if (ip && userAgent) {
+      const visitRecord = await Visitor.recordVisit(ip, userAgent);
+      console.log('Visit recorded:', visitRecord); // Debug visit recording
+    }
+
+
+
     const [activeTopics, totalPosts, studySessions] = await Promise.all([
       Topic.countDocuments(),
       Post.countDocuments(),
@@ -41,11 +53,17 @@ router.get('/', async (req, res) => {
     ]);
 
     const totalStudyHours = Math.round((studySessions[0]?.totalDuration || 0) / 60);
+    const totalVisitorCount = await Visitor.countDocuments();
+
+
+
 
     stats = {
       activeTopics,
       totalPosts,
-      totalStudyHours
+      totalStudyHours,
+      totalVisitors: totalVisitorCount
+
     };
 
     cache.set('stats', stats);
@@ -58,4 +76,3 @@ router.get('/', async (req, res) => {
 });
 
 export default router;
-
