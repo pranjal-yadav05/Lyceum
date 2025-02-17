@@ -25,10 +25,33 @@ router.get('/', async (req, res) => {
 
   try {
     let stats = cache.get('stats');
-    if (stats) {
-      return res.json(stats);
-    }
+    if (!stats) {
+      // If no cached stats, fetch fresh data
+      const [activeTopics, totalPosts, studySessions] = await Promise.all([
+        Topic.countDocuments(),
+        Post.countDocuments(),
+        StudySession.aggregate([
+          {
+            $group: {
+              _id: null,
+              totalDuration: { $sum: '$duration' }
+            }
+          }
+        ])
+      ]);
 
+      const totalStudyHours = Math.round((studySessions[0]?.totalDuration || 0) / 60);
+      const totalVisitorCount = await Visitor.countDocuments();
+
+      stats = {
+        activeTopics,
+        totalPosts,
+        totalStudyHours,
+        totalVisitors: totalVisitorCount
+      };
+      
+      cache.set('stats', stats);
+    }
     // Record visit using IP and user agent
     const ip = req.ip;
     const userAgent = req.headers['user-agent'];
@@ -37,36 +60,7 @@ router.get('/', async (req, res) => {
       console.log('Visit recorded:', visitRecord); // Debug visit recording
     }
 
-
-
-    const [activeTopics, totalPosts, studySessions] = await Promise.all([
-      Topic.countDocuments(),
-      Post.countDocuments(),
-      StudySession.aggregate([
-        {
-          $group: {
-            _id: null,
-            totalDuration: { $sum: '$duration' }
-          }
-        }
-      ])
-    ]);
-
-    const totalStudyHours = Math.round((studySessions[0]?.totalDuration || 0) / 60);
-    const totalVisitorCount = await Visitor.countDocuments();
-
-
-
-
-    stats = {
-      activeTopics,
-      totalPosts,
-      totalStudyHours,
-      totalVisitors: totalVisitorCount
-
-    };
-
-    cache.set('stats', stats);
+    // Stats are now guaranteed to be populated from cache or fresh fetch
 
     res.json(stats);
   } catch (error) {
