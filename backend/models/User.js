@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema({
   username: {
@@ -15,16 +14,18 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
-  password: {
-    type: String,
-    required: function() {
-      return !this.googleId;
-    },
-  },
   googleId: {
     type: String,
     unique: true,
     sparse: true,
+  },
+  isLinkedAccount: {
+    type: Boolean,
+    default: false
+  },
+  linkedAt: {
+    type: Date,
+    default: null
   },
   profileImage: { type: String, default: null },
   coverImage: { type: String, default: null },
@@ -41,9 +42,17 @@ const userSchema = new mongoose.Schema({
   timestamps: true,
 });
 
-// Password validation method
-userSchema.methods.isPasswordValid = async function (inputPassword) {
-  return await bcrypt.compare(inputPassword, this.password);
+// Method to link Google account
+userSchema.methods.linkGoogleAccount = async function(googleId) {
+  this.googleId = googleId;
+  this.isLinkedAccount = true;
+  this.linkedAt = new Date();
+  await this.save();
+};
+
+// Method to check if account is linked
+userSchema.methods.isAccountLinked = function() {
+  return this.isLinkedAccount && this.googleId !== null;
 };
 
 const User = mongoose.model('User', userSchema);
