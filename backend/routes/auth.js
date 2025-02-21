@@ -84,39 +84,6 @@ router.get('/google/callback',
 );
 
 // Handle Google token verification from frontend
-// Endpoint to link existing account with Google
-router.post('/link-account', async (req, res) => {
-  try {
-    const { email, password, googleToken } = req.body;
-    
-    // Verify user credentials
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    const isPasswordValid = await user.isPasswordValid(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid password' });
-    }
-
-    // Verify Google token
-    const ticket = await client.verifyIdToken({
-      idToken: googleToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-
-    // Link Google account
-    await user.linkGoogleAccount(payload.sub);
-    
-    res.json({ message: 'Account successfully linked with Google' });
-  } catch (error) {
-    console.error('Account linking error:', error);
-    res.status(500).json({ error: 'Failed to link account' });
-  }
-});
-
 router.post('/google', async (req, res) => {
   try {
     const { token } = req.body;
@@ -125,26 +92,16 @@ router.post('/google', async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-
     const payload = ticket.getPayload();
     const email = payload.email;
     let user = await User.findOne({ email });
 
     if (user) {
-      // If user has password but no Google ID, suggest linking
-      if (user.password && !user.googleId) {
-        return res.status(200).json({ 
-          token: generateToken(user),
-          suggestLinking: true 
-        });
-      }
-      
       // Update existing user with Google ID if not present
       if (!user.googleId) {
         user.googleId = payload.sub;
         await user.save();
       }
-
     } else {
       // Create new user if doesn't exist
       const username = await generateUniqueUsername(email.split('@')[0].toLowerCase());
@@ -165,7 +122,76 @@ router.post('/google', async (req, res) => {
   }
 });
 
+// Regular registration
+router.post('/register', async (req, res) => {
+  const { username, email, password } = req.body;
 
+  try {
+    // Check if user exists with email (including Google users)
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      if (existingUser.googleId) {
+        return res.status(400).json({ 
+          error: 'Email already registered with Google. Please use Google Sign-In.'
+        });
+      }
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    // Check username availability
+    if (await User.findOne({ username })) {
+      return res.status(400).json({ error: 'Username already in use' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword,
+    });
+
+    await user.save();
+    const token = generateToken(user);
+    res.status(201).json({ message: 'User registered successfully', token });
+
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Regular login
+router.post('/login', async (req, res) => {
+  const { identifier, password } = req.body;
+
+  try {
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+    const query = isEmail ? { email: identifier } : { username: identifier };
+    
+    const user = await User.findOne(query);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if user is registered with Google
+    if (user.googleId && !user.password) {
+      return res.status(400).json({ 
+        error: 'This account uses Google Sign-In. Please login with Google.'
+      });
+    }
+
+    const isPasswordValid = await user.isPasswordValid(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = generateToken(user);
+    res.json({ token });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
