@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'Lyceum'; // Make sure this matches the secret used in your auth routes
+const JWT_SECRET = process.env.JWT_SECRET; // Use environment variable for consistency
+
 
 export const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];

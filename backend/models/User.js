@@ -1,7 +1,9 @@
 import mongoose from "mongoose";
 import bcrypt from 'bcrypt';
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+{
+
   username: {
     type: String,
     required: true,
@@ -15,7 +17,8 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
-  password: {
+  password: { 
+
     type: String,
     required: function() {
       return !this.googleId;
@@ -33,12 +36,14 @@ const userSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
   }],
   friends: [String],
-  visitorCount: {
+  visitorCount: { 
+
     type: Number,
     default: 0
   }
 }, {
-  timestamps: true,
+  timestamps: true
+
 });
 
 // Password validation method
