@@ -1,12 +1,14 @@
 import mongoose from "mongoose";
 import bcrypt from 'bcrypt';
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+{
+
   username: {
     type: String,
     required: true,
-    unique: true, // Ensures the username is unique
-    trim: true, // Trims spaces around the username
+    unique: true,
+    trim: true,
   },
   email: {
     type: String,
@@ -15,7 +17,8 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
-  password: {
+  password: { 
+
     type: String,
     required: function() {
       return !this.googleId;
@@ -26,7 +29,6 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true,
   },
-
   profileImage: { type: String, default: null },
   coverImage: { type: String, default: null },
 
@@ -35,13 +37,18 @@ const userSchema = new mongoose.Schema({
 
   // Add friends and friend requests
   friendRequests: [{
-    sender: String, // Change from senderId to sender (username)
+    sender: String,
     timestamp: { type: Date, default: Date.now }
   }],
-  friends: [String]
+  friends: [String],
+  visitorCount: { 
 
+    type: Number,
+    default: 0
+  }
 }, {
-  timestamps: true,
+  timestamps: true
+
 });
 
 // Password validation method

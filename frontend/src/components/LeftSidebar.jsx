@@ -1,7 +1,8 @@
 import React, { forwardRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "./ui/button";
-import { LayoutGrid, MessageSquare, Globe, BarChart, BookOpen, User, LogOut, Search, Home } from 'lucide-react';
+import { LayoutGrid, Globe, User, LogOut, Search, Home } from 'lucide-react';
+
 import {
   Tooltip,
   TooltipContent,
@@ -53,16 +54,17 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
           <TooltipTrigger asChild>
             <div 
               onClick={() => handleNavigation('/welcome')} 
-              className="w-14 h-14 bg-purple-600 rounded-lg cursor-pointer flex flex-col items-center justify-center group transition-all duration-300 hover:bg-purple-500"
+              className="w-14 h-14 rounded-full cursor-pointer flex items-center justify-center group transition-all duration-300 border-2 border-purple-600 hover:border-purple-500"
             >
-              <BookOpen size={24} className="text-black mb-1" />
-              <span className="text-xs font-bold text-white opacity-90 group-hover:opacity-100 transition-opacity duration-300">Lyceum</span>
+              <img src="/favicon.ico" alt="Lyceum" className="w-10 h-10" />
             </div>
+
           </TooltipTrigger>
           <TooltipContent side="right" className="hidden md:block">
             <p>Go to Welcome Page</p>
           </TooltipContent>
         </Tooltip>
+
 
         {/* Main Navigation */}
         <nav className="flex flex-col space-y-6 flex-1 mt-8 w-full px-3">
@@ -138,4 +140,3 @@ const LeftSidebar = forwardRef(({ isSidebarOpen, closeSidebar, openSearchDrawer 
 LeftSidebar.displayName = 'LeftSidebar';
 
 export default LeftSidebar;
-

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, Users, User, Plus, LogIn, Video, Menu } from 'lucide-react';
+import { MessageSquare, Users, Plus, LogIn, Video, Menu } from 'lucide-react';
+
+
 import LeftSidebar from './LeftSidebar';
 import SearchDrawer from './SearchDrawer';
 import axios from 'axios';
@@ -22,8 +24,10 @@ const WelcomePage = ({ username }) => {
   const [stats, setStats] = useState({
     activeTopics: 0,
     totalPosts: 0,
-    totalStudyHours: 0
+    totalStudyHours: 0,
+    totalVisitors: 0
   });
+
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -117,25 +121,33 @@ const WelcomePage = ({ username }) => {
       }`}>
         <div className="flex-1 p-4 md:p-6 md:ml-16 overflow-y-auto min-h-screen">
           <div className="max-w-6xl mx-auto">
-            {/* Header with welcome message */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center">
-                  <Button
-                    ref={buttonRef}
-                    className="md:hidden mr-4 bg-purple-600 hover:bg-purple-700"
-                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                    aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-                  >
-                    <Menu className="h-4 w-4" />
-                  </Button>
-                  <h1 className="text-2xl font-bold">Welcome, {username}! 👋</h1>
-                </div>
-              </div>
+            {/* Centered welcome message */}
+              <div className="flex flex-col items-center justify-center flex-grow py-8 mb-8 mt-16 md:mt-0">
+
+              <Button
+                ref={buttonRef}
+                className="md:hidden fixed top-4 left-4 bg-purple-600 hover:bg-purple-700 z-20"
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
+
+
+
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-t from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4 animate-fade-in px-4 md:px-6 py-2 md:py-3">
+                Hello {username},
+              </h1>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-300 animate-slide-up">
+                Welcome to Lyceum! 👋
+              </h2>
+
+
             </div>
 
             {/* Main content */}
-            <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6 md:mb-8">
+            <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6 md:mb-8 mt-8">
               {/* Video Chat Card */}
               <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
@@ -185,11 +197,11 @@ const WelcomePage = ({ username }) => {
                     Engage with other students, share knowledge, and participate in meaningful discussions.
                   </p>
                   <Button 
-                    className="w-full bg-purple-600 hover:bg-purple-700"
-                    onClick={() => navigate('/forum')}
-                  >
-                    Browse Forums
-                  </Button>
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      onClick={() => navigate('/forum')}
+                    >
+                      Browse Forums
+                    </Button>
                 </CardContent>
               </Card>
 
@@ -216,9 +228,9 @@ const WelcomePage = ({ username }) => {
             </div>
 
             {/* Stats cards */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               {isLoading ? (
-                Array(3).fill(0).map((_, index) => (
+                Array(4).fill(0).map((_, index) => (
                   <Card key={index} className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
                       <LoadingSpinner />
@@ -235,16 +247,24 @@ const WelcomePage = ({ username }) => {
                   </Card>
                   <Card className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Posts</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalPosts} /></div>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-[#1a1425] border-purple-600/20">
+                    <CardContent className="pt-6">
                       <h3 className="text-lg font-semibold text-white mb-2">Total Study Hours</h3>
                       <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalStudyHours} /></div>
                     </CardContent>
                   </Card>
                   <Card className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
-                      <h3 className="text-lg font-semibold text-white mb-2">Total Posts</h3>
-                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalPosts} /></div>
+                      <h3 className="text-lg font-semibold text-white mb-2">Total Visitors</h3>
+                      <div className="text-3xl font-bold text-purple-400"><AnimatedCounter value={stats.totalVisitors} /></div>
                     </CardContent>
                   </Card>
+
+
                 </>
               )}
             </div>
@@ -257,4 +277,3 @@ const WelcomePage = ({ username }) => {
 };
 
 export default WelcomePage;
-

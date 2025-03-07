@@ -16,9 +16,9 @@ import { Toaster } from 'react-hot-toast';
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('token') || false);
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
   const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState('User');
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     const initializeAuth = () => {
@@ -27,8 +27,7 @@ function App() {
       if (token) {
         try {
           const decodedToken = jwtDecode(token);
-          const fetchedUsername = decodedToken.username;
-          setUsername(fetchedUsername);
+          setUsername(decodedToken.username || '');
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Error decoding token:', error);
@@ -44,9 +43,11 @@ function App() {
   }, []);
 
   const handleLogin = (token) => {
+    localStorage.setItem('token', token);
+
     try {
       const decodedToken = jwtDecode(token);
-      setUsername(decodedToken.username);
+      setUsername(decodedToken.username || '');
       setIsAuthenticated(true);
       localStorage.setItem('username',decodedToken.username);
       localStorage.setItem('userId',decodedToken.id)
@@ -57,23 +58,18 @@ function App() {
   };
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or your loading component
+    return <div>Loading...</div>; // Or replace with a proper loading spinner
   }
 
   return (
     <GoogleOAuthProvider clientId={CLIENT_ID}>
       <Router>
         <Routes>
-          {/* Redirect all routes other than login/register to login page if not authenticated */}
-          <Route 
-            path="*" 
-            element={isAuthenticated ? <Navigate to="/welcome" replace /> : <Navigate to="/login" replace />} 
-          />
           <Route path="/login" element={<LoginPage setAuth={setIsAuthenticated} onLoginSuccess={handleLogin} />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register" element={<RegisterPage onLoginSuccess={handleLogin} />} />
           
           {/* Protected Routes */}
-          <Route path='/chat-list' element={isAuthenticated? <ChatPage /> : <Navigate to='/login' replace/>} />
+          <Route path='/chat-list' element={isAuthenticated ? <ChatPage /> : <Navigate to='/login' replace />} />
           <Route path="/select-interests" element={isAuthenticated ? <SelectInterests /> : <Navigate to="/login" replace />} />
           <Route path="/video-chat/:roomId" element={isAuthenticated ? <VideoChatPage username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />
           <Route path="/forum" element={isAuthenticated ? <ForumPosts username={username} setUsername={setUsername} /> : <Navigate to="/login" replace />} />

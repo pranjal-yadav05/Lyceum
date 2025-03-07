@@ -32,7 +32,6 @@ passport.use(new GoogleStrategy({
     let user = await User.findOne({ email });
 
     if (user) {
-      // If user exists but doesn't have googleId, update it
       if (!user.googleId) {
         user.googleId = profile.id;
         await user.save();
@@ -40,7 +39,6 @@ passport.use(new GoogleStrategy({
       return done(null, user);
     }
 
-    // If user doesn't exist, create new user
     const username = await generateUniqueUsername(email.split('@')[0].toLowerCase());
     user = new User({
       email,
@@ -56,7 +54,6 @@ passport.use(new GoogleStrategy({
   }
 }));
 
-// Helper function to generate unique username
 async function generateUniqueUsername(baseUsername) {
   let username = baseUsername;
   let counter = 1;
@@ -70,7 +67,6 @@ async function generateUniqueUsername(baseUsername) {
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user, done) => done(null, user));
 
-// Google Sign-In routes
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
@@ -83,7 +79,6 @@ router.get('/google/callback',
   }
 );
 
-// Handle Google token verification from frontend
 router.post('/google', async (req, res) => {
   try {
     const { token } = req.body;
@@ -97,13 +92,11 @@ router.post('/google', async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user) {
-      // Update existing user with Google ID if not present
       if (!user.googleId) {
         user.googleId = payload.sub;
         await user.save();
       }
     } else {
-      // Create new user if doesn't exist
       const username = await generateUniqueUsername(email.split('@')[0].toLowerCase());
       user = new User({
         email,
@@ -122,12 +115,10 @@ router.post('/google', async (req, res) => {
   }
 });
 
-// Regular registration
 router.post('/register', async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
-    // Check if user exists with email (including Google users)
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       if (existingUser.googleId) {
@@ -138,7 +129,6 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Email already in use' });
     }
 
-    // Check username availability
     if (await User.findOne({ username })) {
       return res.status(400).json({ error: 'Username already in use' });
     }
@@ -151,14 +141,49 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
-    res.status(201).json({ message: 'User registered successfully' });
+    
+    const token = generateToken(user);
+    
+    // Clear session and cookies before sending response
+    if (req.session) {
+      req.session.destroy(err => {
+        if (err) {
+          console.error('Error destroying session:', err);
+        }
+        res.clearCookie('connect.sid');
+        res.status(201).json({ message: 'User registered successfully', token });
+      });
+    } else {
+      res.status(201).json({ message: 'User registered successfully', token });
+    }
+
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Regular login
+router.post('/check-user', async (req, res) => {
+  const { identifier } = req.body;
+  
+  try {
+    const user = await User.findOne({ 
+      $or: [{ email: identifier }, { username: identifier }] 
+    });
+
+    if (!user) {
+      return res.json({ exists: false });
+    }
+
+    res.json({ 
+      exists: true,
+      authMethod: user.googleId ? 'google' : 'password'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error checking user' });
+  }
+});
+
 router.post('/login', async (req, res) => {
   const { identifier, password } = req.body;
 
@@ -171,19 +196,18 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if user is registered with Google
     if (user.googleId && !user.password) {
-      return res.status(400).json({ 
-        error: 'This account uses Google Sign-In. Please login with Google.'
-      });
+        console.log('Triggering Google authentication');
+        return res.redirect('/google');
     }
 
     const isPasswordValid = await user.isPasswordValid(password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+        return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const token = generateToken(user);
+    req.session.user = user;
     res.json({ token });
   } catch (err) {
     console.error('Login error:', err);
@@ -193,7 +217,20 @@ router.post('/login', async (req, res) => {
 
 router.post('/logout', (req, res) => {
   res.clearCookie('token');
-  res.json({ message: 'Logged out successfully' });
+  
+  if (req.session) {
+    req.session.destroy(err => {
+      if (err) {
+        console.error('Error destroying session:', err);
+        return res.status(500).json({ error: 'Error logging out' });
+      } else {
+        res.clearCookie('connect.sid');
+        return res.json({ success: true, message: 'Logged out successfully' });
+      }
+    });
+  } else {
+    return res.json({ success: true, message: 'Logged out successfully' });
+  }
 });
 
 export default router;
