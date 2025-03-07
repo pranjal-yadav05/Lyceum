@@ -57,7 +57,6 @@ router.get('/', async (req, res) => {
     const userAgent = req.headers['user-agent'];
     if (ip && userAgent) {
       const visitRecord = await Visitor.recordVisit(ip, userAgent);
-      console.log('Visit recorded:', visitRecord); // Debug visit recording
     }
 
     // Stats are now guaranteed to be populated from cache or fresh fetch

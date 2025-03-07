@@ -27,19 +27,27 @@ const ChatPage = () => {
       setIsConnected(true)
       setIsLoading(false)
       toast.success("Connected to server")
-    } catch (error) {
-      console.error("Socket setup error:", error)
-      toast.error("Failed to connect to server: " + error.message)
-      setIsConnected(false)
-      setIsLoading(false)
-      if (error.message.includes("No authentication token found")) {
-        navigate("/login")
+    }  catch (error) {
+      console.error("Socket setup error:", error);
+      toast.error("Failed to connect to server: " + error.message);
+      setIsConnected(false);
+      setIsLoading(false);
+      
+      // Only redirect if it's specifically a token issue
+      if (error.message.includes("No authentication token found") || 
+          error.response?.status === 401 || 
+          error.response?.status === 403) {
+        console.log("Authentication error detected, redirecting to login");
+        navigate("/login");
       }
     }
   }, [navigate])
 
   useEffect(() => {
     const token = localStorage.getItem("token")
+
+    console.log("Token on ChatPage load:", token ? "Token exists" : "No token");
+
     if (!token) {
       navigate("/login")
       return

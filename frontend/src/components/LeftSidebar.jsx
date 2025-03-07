@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from "./ui/button";
-import { LayoutGrid, Globe, User, LogOut, Search, Home } from 'lucide-react';
+import { LayoutGrid, Globe, User, LogOut, Search, Home, MessageSquare } from 'lucide-react';
 
 import {
   Tooltip,

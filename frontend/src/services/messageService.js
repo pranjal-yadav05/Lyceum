@@ -205,24 +205,42 @@ export const getConversation = async (userId) => {
 export const getConversations = async () => {
   try {
     const token = localStorage.getItem("token");
+    
     if (!token) {
-      throw new Error("No authentication token found");
+      console.error("No token available in localStorage");
+      throw new Error("Authentication token not found");
     }
+
+    console.log("Making request to:", `${API_URL}/conversations`);
+    console.log("Using token:", token.substring(0, 10) + "..."); // Log partial token for debugging
 
     const response = await axios.get(`${API_URL}/conversations`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
+    
     return response.data;
   } catch (error) {
     console.error("Error getting conversations:", error);
-    if (error.response && error.response.status === 403) {
-      // Token might be expired, clear it and redirect to login
-      localStorage.removeItem("token");
-      window.location.href = "/login";
+    
+    // More detailed error reporting
+    if (error.response) {
+      // Server responded with an error status
+      console.error("Server response error:", {
+        status: error.response.status,
+        data: error.response.data
+      });
+      
+      if (error.response.status === 403) {
+        console.error("Auth token might be invalid or expired. Try logging in again.");
+      }
+    } else if (error.request) {
+      // Request was made but no response received
+      console.error("No response received from server");
     }
-    throw error;
+    
+    throw error; // Re-throw the error for the caller to handle
   }
 };
 

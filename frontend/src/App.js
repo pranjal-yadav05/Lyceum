@@ -65,6 +65,10 @@ function App() {
     <GoogleOAuthProvider clientId={CLIENT_ID}>
       <Router>
         <Routes>
+          <Route 
+            path="*" 
+            element={isAuthenticated ? <Navigate to="/welcome" replace /> : <Navigate to="/login" replace />} 
+          />
           <Route path="/login" element={<LoginPage setAuth={setIsAuthenticated} onLoginSuccess={handleLogin} />} />
           <Route path="/register" element={<RegisterPage onLoginSuccess={handleLogin} />} />
           
