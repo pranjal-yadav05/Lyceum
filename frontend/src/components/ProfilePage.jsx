@@ -9,6 +9,7 @@ import { Share2, Edit2, Clock, Users, Flame, ArrowLeft, Upload, UserPlus, UserMi
 import LeftSidebar from './LeftSidebar';
 import FriendRequests from './FriendRequests';
 import LoadingSpinner from './LoadingSpinner';
+import SearchDrawer from './SearchDrawer';
 
 const ProfilePage = () => {
   const API_URL = process.env.REACT_APP_API_URL;
@@ -16,6 +17,7 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [isButtonVisible, setIsButtonVisible] = useState(true);
   const [isCurrentUser, setIsCurrentUser] = useState(false);
   const [friends, setFriends] = useState([]);
@@ -217,6 +219,14 @@ const ProfilePage = () => {
     setIsButtonVisible(true);
   };
 
+  const openSearchDrawer = () => {
+    setIsSearchDrawerOpen(true);
+  };
+
+  const closeSearchDrawer = () => {
+    setIsSearchDrawerOpen(false);
+  };
+
   const getImageUrl = (imageUrl, type) => {
     if (imageUrl) return imageUrl;
     return type === 'profile' ? '/images/defaultProfile.jpg' : '/images/defaultCover.jpg';
@@ -231,7 +241,8 @@ const ProfilePage = () => {
     closeSidebar,
     setIsSidebarOpen,
     isButtonVisible,
-    setIsButtonVisible
+    setIsButtonVisible,
+    openSearchDrawer
   };
   
   const interests = [
@@ -418,6 +429,7 @@ const ProfilePage = () => {
           </Tabs>
         </div>
       </div>
+      <SearchDrawer isOpen={isSearchDrawerOpen} onClose={closeSearchDrawer} API_URL={API_URL} />
     </div>
   );
 };

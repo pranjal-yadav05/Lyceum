@@ -1,44 +1,44 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
-import { Button } from "./ui/button";
-import { Menu } from 'lucide-react';
-import LeftSidebar from './LeftSidebar';
-import SearchDrawer from './SearchDrawer';
-import TopicsList from './TopicsList';
-import PostsView from './PostsView';
-import CreateTopicDialog from './CreateTopicDialog';
-import LoadingSpinner from './LoadingSpinner';
+"use client"
 
-const API_URL = process.env.REACT_APP_API_URL;
+import { useState, useEffect, useRef } from "react"
+import axios from "axios"
+import { Button } from "./ui/button"
+import { Menu } from "lucide-react"
+import LeftSidebar from "./LeftSidebar"
+import SearchDrawer from "./SearchDrawer"
+import TopicsList from "./TopicsList"
+import PostsView from "./PostsView"
+import LoadingSpinner from "./LoadingSpinner"
+
+const API_URL = process.env.REACT_APP_API_URL
 
 export default function ForumPosts({ username }) {
-  const [topics, setTopics] = useState([]);
+  const [topics, setTopics] = useState([])
   const [selectedTopic, setSelectedTopic] = useState(() => {
-    const saved = localStorage.getItem('selectedTopic');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const saved = localStorage.getItem("selectedTopic")
+    return saved ? JSON.parse(saved) : null
+  })
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(() => {
-    const saved = localStorage.getItem('selectedCategory');
-    return saved || 'all';
-  });
-  const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
-  const [isLoadingTopics, setIsLoadingTopics] = useState(true);
-  const buttonRef = useRef(null);
-  const sidebarRef = useRef(null);
+    const saved = localStorage.getItem("selectedCategory")
+    return saved || "all"
+  })
+  const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false)
+  const [isLoadingTopics, setIsLoadingTopics] = useState(true)
+  const buttonRef = useRef(null)
+  const sidebarRef = useRef(null)
 
   useEffect(() => {
-    fetchTopics();
-  }, []);
+    fetchTopics()
+  }, [])
 
   useEffect(() => {
-    localStorage.setItem('selectedTopic', JSON.stringify(selectedTopic));
-  }, [selectedTopic]);
+    localStorage.setItem("selectedTopic", JSON.stringify(selectedTopic))
+  }, [selectedTopic])
 
   useEffect(() => {
-    localStorage.setItem('selectedCategory', selectedCategory);
-  }, [selectedCategory]);
+    localStorage.setItem("selectedCategory", selectedCategory)
+  }, [selectedCategory])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -49,99 +49,95 @@ export default function ForumPosts({ username }) {
         buttonRef.current &&
         !buttonRef.current.contains(event.target)
       ) {
-        closeSidebar();
+        closeSidebar()
       }
-    };
+    }
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside)
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isSidebarOpen]);
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isSidebarOpen])
 
   const fetchTopics = async () => {
-    setIsLoadingTopics(true);
+    setIsLoadingTopics(true)
     try {
       const response = await axios.get(`${API_URL}/topics`, {
         withCredentials: true,
-      });
-      setTopics(response.data);
+      })
+      setTopics(response.data)
     } catch (error) {
-      console.error('Error fetching topics:', error);
+      console.error("Error fetching topics:", error)
     } finally {
-      setIsLoadingTopics(false);
+      setIsLoadingTopics(false)
     }
-  };
+  }
 
   const handleCreateTopic = async (newTopic) => {
     try {
       await axios.post(`${API_URL}/topics`, newTopic, {
         withCredentials: true,
-      });
-      setIsCreateTopicOpen(false);
-      fetchTopics();
+      })
+      fetchTopics()
     } catch (error) {
-      console.error('Error creating topic:', error);
+      console.error("Error creating topic:", error)
     }
-  };
+  }
 
   const handleTopicSelect = (topicId) => {
-    setSelectedTopic(topicId);
-    setIsSidebarOpen(false);
-  };
+    setSelectedTopic(topicId)
+    setIsSidebarOpen(false)
+  }
 
   const handleDeleteTopic = async (topicId) => {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem("token")
     try {
       await axios.delete(`${API_URL}/topics/${topicId}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      fetchTopics();
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      fetchTopics()
       if (selectedTopic === topicId) {
-        setSelectedTopic(null);
+        setSelectedTopic(null)
       }
     } catch (error) {
-      console.error("Error deleting topic:", error);
+      console.error("Error deleting topic:", error)
     }
-  };
+  }
 
   const openSearchDrawer = () => {
-    setIsSearchDrawerOpen(true);
-  };
+    setIsSearchDrawerOpen(true)
+  }
 
   const closeSearchDrawer = () => {
-    setIsSearchDrawerOpen(false);
-  };
+    setIsSearchDrawerOpen(false)
+  }
 
   const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
+    setIsSidebarOpen(false)
+  }
 
   return (
     <div className="h-screen bg-[#0f0a1f] text-white flex flex-col md:flex-row overflow-hidden">
       <div className="md:relative">
-        {isSidebarOpen && (
-          <div 
-            className="fixed inset-0 bg-black/50 z-20 md:hidden" 
-            onClick={closeSidebar}
-          />
-        )}
-        
+        {isSidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={closeSidebar} />}
+
         <LeftSidebar
           isSidebarOpen={isSidebarOpen}
           closeSidebar={closeSidebar}
           openSearchDrawer={openSearchDrawer}
           ref={sidebarRef}
           className={`fixed md:relative z-30 h-full transition-transform duration-300 ease-in-out ${
-            isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
           }`}
         />
       </div>
 
       <div className="flex-1 md:ml-16 flex flex-col md:flex-row overflow-hidden">
-        <div className={`w-full md:w-64 lg:w-80 bg-gray-900 p-4 overflow-y-auto ${selectedTopic ? 'hidden md:block' : ''}`}>
+        <div
+          className={`w-full md:w-64 lg:w-80 bg-gray-900 p-4 overflow-y-auto ${selectedTopic ? "hidden md:block" : ""}`}
+        >
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
@@ -169,17 +165,14 @@ export default function ForumPosts({ username }) {
               handleDeleteTopic={handleDeleteTopic}
               username={username}
               selectedTopic={selectedTopic}
+              handleCreateTopic={handleCreateTopic}
             />
           )}
         </div>
 
-        <div className={`flex-1 overflow-hidden ${selectedTopic ? '' : 'hidden md:block'}`}>
+        <div className={`flex-1 overflow-hidden ${selectedTopic ? "" : "hidden md:block"}`}>
           {selectedTopic ? (
-            <PostsView
-              topicId={selectedTopic}
-              username={username}
-              onClose={() => setSelectedTopic(null)}
-            />
+            <PostsView topicId={selectedTopic} username={username} onClose={() => setSelectedTopic(null)} />
           ) : (
             <div className="flex items-center justify-center h-full">
               <p className="text-gray-400 text-lg">Select a topic to view posts</p>
@@ -190,5 +183,6 @@ export default function ForumPosts({ username }) {
 
       <SearchDrawer isOpen={isSearchDrawerOpen} onClose={closeSearchDrawer} API_URL={API_URL} />
     </div>
-  );
+  )
 }
+

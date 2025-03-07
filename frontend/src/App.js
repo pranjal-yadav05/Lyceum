@@ -10,6 +10,9 @@ import WelcomePage from './components/WelcomePage';
 import ProfilePage from './components/ProfilePage';
 import { jwtDecode } from 'jwt-decode';
 import ChatPage from './components/ChatPage';
+import BlobManager from './components/BlobManager';
+import { Toaster } from 'react-hot-toast';
+
 const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 function App() {
@@ -46,6 +49,7 @@ function App() {
       setUsername(decodedToken.username);
       setIsAuthenticated(true);
       localStorage.setItem('username',decodedToken.username);
+      localStorage.setItem('userId',decodedToken.id)
       localStorage.setItem('token', token);
     } catch (error) {
       console.error('Error during login:', error);
@@ -78,9 +82,12 @@ function App() {
             path="/profile/:username" 
             element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}
           />
+          <Route path="/blob" element={<BlobManager/>} />
+       
           <Route path="/welcome" element={isAuthenticated ? <WelcomePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />} />
         </Routes>
       </Router>
+      <Toaster position="top-right" />
     </GoogleOAuthProvider>
   );
 }

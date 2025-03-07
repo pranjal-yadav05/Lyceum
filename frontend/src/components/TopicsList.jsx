@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "./ui/button";
-import { MessageSquare, FileQuestion } from 'lucide-react';
+import { MessageSquare, FileQuestion, Plus } from 'lucide-react';
 import { ScrollArea } from "./ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import CreateTopicDialog from './CreateTopicDialog';
 
 const categories = [
   'General Discussion',
@@ -13,22 +14,33 @@ const categories = [
   'Events',
 ];
 
-export default function TopicsList({ topics, selectedCategory, setSelectedCategory, handleTopicSelect, handleDeleteTopic, username, selectedTopic }) {
+export default function TopicsList({ topics, selectedCategory, setSelectedCategory, handleTopicSelect, handleDeleteTopic, username, selectedTopic, handleCreateTopic }) {
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false);
+
   return (
     <div className="flex flex-col h-full">
-      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-        <SelectTrigger className="w-full bg-[#1a1425] border-purple-600/20 mb-4">
-          <SelectValue placeholder="Select category" />
-        </SelectTrigger>
-        <SelectContent className="bg-[#1a1425]">
-          <SelectItem value="all">All Topics</SelectItem>
-          {categories.map((category) => (
-            <SelectItem key={category} value={category}>
-              {category}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="flex justify-between items-center mb-4">
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="w-full bg-[#1a1425] border-purple-600/20">
+            <SelectValue placeholder="Select category" />
+          </SelectTrigger>
+          <SelectContent className="bg-[#1a1425]">
+            <SelectItem value="all">All Topics</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button 
+          className="bg-purple-600 hover:bg-purple-700 ml-2"
+          onClick={() => setIsCreateTopicOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          New Topic
+        </Button>
+      </div>
 
       <ScrollArea className="flex-1">
         <div className="space-y-2">
@@ -81,7 +93,13 @@ export default function TopicsList({ topics, selectedCategory, setSelectedCatego
           )}
         </div>
       </ScrollArea>
+
+      <CreateTopicDialog 
+        isOpen={isCreateTopicOpen}
+        onOpenChange={setIsCreateTopicOpen}
+        onCreateTopic={handleCreateTopic}
+        username={username}
+      />
     </div>
   );
 }
-

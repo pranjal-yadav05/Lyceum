@@ -16,6 +16,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import chatRoutes from './routes/messages.js';
 import friendRoutes from './routes/friends.js';
+import blobManagementRoutes from './routes/blobManagement.js';
 
 dotenv.config();
 
@@ -64,6 +65,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat',chatRoutes);
 app.use('/api/friends', friendRoutes);
+app.use('/api/storage', blobManagementRoutes);
 
 app.get('/', (req, res) => res.send("Welcome to the API server..."));
 

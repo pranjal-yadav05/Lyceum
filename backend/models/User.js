@@ -30,6 +30,9 @@ const userSchema = new mongoose.Schema({
   profileImage: { type: String, default: null },
   coverImage: { type: String, default: null },
 
+  isOnline: { type: Boolean, default: false },
+  lastSeen: { type: Date },
+
   // Add friends and friend requests
   friendRequests: [{
     sender: String, // Change from senderId to sender (username)

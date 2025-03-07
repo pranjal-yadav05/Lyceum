@@ -52,7 +52,7 @@ const ChatBox = ({ socket, roomId,userId, username }) => {
                 }`}
               >
                 <span className="text-xs text-gray-500">
-                  {msg.username} - {new Date(msg.timestamp).toLocaleTimeString()}
+                  {msg.sender} - {new Date(msg.timestamp).toLocaleTimeString()}
                 </span>
                 <p
                   className={`inline-block p-2 rounded-lg max-w-[80%] break-words ${

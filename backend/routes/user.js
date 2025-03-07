@@ -1,6 +1,6 @@
 import express from 'express';
 import multer from 'multer';
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 import User from '../models/User.js';
 import { config } from 'dotenv';
 import authenticateToken from '../middleware/authenticateToken.js';
@@ -13,6 +13,17 @@ const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Helper function to extract blob path from URL
+const getBlobPathFromUrl = (url) => {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.pathname.substring(1); // Remove leading slash
+  } catch (error) {
+    console.error('Error parsing URL:', error);
+    return null;
+  }
+};
+
 // Update profile image
 router.post('/profile-image', authenticateToken, upload.single('profile-image'), async (req, res) => {
   try {
@@ -21,10 +32,28 @@ router.post('/profile-image', authenticateToken, upload.single('profile-image'),
     }
 
     const userId = req.user.id;
+    
+    // Get the user's current profile image URL
+    const user = await User.findById(userId);
+    if (user.profileImage) {
+      // Delete old profile image from Blob storage
+      const oldBlobPath = getBlobPathFromUrl(user.profileImage);
+      if (oldBlobPath) {
+        try {
+          await del(oldBlobPath, {
+            token: process.env.BLOB_READ_WRITE_TOKEN
+          });
+        } catch (deleteError) {
+          console.error('Error deleting old profile image:', deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+    }
+
     const buffer = req.file.buffer;
     const filename = `profile-${Date.now()}-${userId}`;
 
-    // Upload to Vercel Blob Storage
+    // Upload new image to Vercel Blob Storage
     const blob = await put(filename, buffer, {
       access: 'public',
       token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -52,10 +81,28 @@ router.post('/cover-image', authenticateToken, upload.single('cover-image'), asy
     }
 
     const userId = req.user.id;
+
+    // Get the user's current cover image URL
+    const user = await User.findById(userId);
+    if (user.coverImage) {
+      // Delete old cover image from Blob storage
+      const oldBlobPath = getBlobPathFromUrl(user.coverImage);
+      if (oldBlobPath) {
+        try {
+          await del(oldBlobPath, {
+            token: process.env.BLOB_READ_WRITE_TOKEN
+          });
+        } catch (deleteError) {
+          console.error('Error deleting old cover image:', deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+    }
+
     const buffer = req.file.buffer;
     const filename = `cover-${Date.now()}-${userId}`;
 
-    // Upload to Vercel Blob Storage
+    // Upload new image to Vercel Blob Storage
     const blob = await put(filename, buffer, {
       access: 'public',
       token: process.env.BLOB_READ_WRITE_TOKEN,
@@ -105,4 +152,3 @@ router.get('/', async (req, res) => {
 });
 
 export default router;
-
