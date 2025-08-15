@@ -8,7 +8,7 @@ import LeftSidebar from "./LeftSidebar";
 import SearchDrawer from "./SearchDrawer";
 import AnimatedCounter from "./AnimatedCounter";
 import LoadingSpinner from "./LoadingSpinner";
-import UnderDevelopmentModal from "./UnderDevelopmentModal"; // Import the modal component
+import UnderDevelopmentModal from "./UnderDevelopmentModal";
 
 const API_URL = process.env.REACT_APP_API_URL;
 

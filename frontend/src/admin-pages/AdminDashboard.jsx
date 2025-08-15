@@ -12,7 +12,6 @@ import {
   ListItemIcon,
   Divider,
   Chip,
-  CircularProgress,
   Alert,
   Switch,
   FormControlLabel,
@@ -32,6 +31,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import axios from "axios";
+import LoadingSpinner from "../components/LoadingSpinner";
 
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -112,7 +112,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchDashboardData, 15 * 60 * 1000); // Refresh every 15 minutes
     return () => clearInterval(interval);
   }, []);
 
@@ -144,7 +144,7 @@ const AdminDashboard = () => {
         alignItems="center"
         minHeight="100vh"
       >
-        <CircularProgress />
+        <LoadingSpinner />
       </Box>
     );
   }

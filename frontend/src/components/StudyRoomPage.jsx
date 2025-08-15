@@ -16,8 +16,6 @@ import {
 import ChatBox from "./ChatBox";
 import axios from "axios";
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
-
 const StudyRoomPage = () => {
   const { roomId } = useParams();
   const [peers, setPeers] = useState([]);
@@ -262,7 +260,7 @@ const StudyRoomPage = () => {
 
         try {
           const response = await axios.post(
-            `${API_BASE_URL}/studySessions`,
+            "https://lyceum.vercel.app/api/studySessions",
             sessionData
           );
           console.log("Study session saved:", response.data);
