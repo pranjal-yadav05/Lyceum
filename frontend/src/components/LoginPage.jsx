@@ -34,7 +34,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
       localStorage.setItem("token", res.data.token);
       onLoginSuccess(res.data.token);
       setAuth(true);
-      navigate("/welcome");
+      navigate("/dashboard");
     } catch (err) {
       setError("Google login failed");
     } finally {
@@ -58,7 +58,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
           });
           onLoginSuccess(response.data.token);
           setAuth(true);
-          navigate("/welcome");
+          navigate("/dashboard");
         } else {
           const checkResponse = await axios.post(`${API_URL}/auth/check-user`, {
             identifier,
@@ -103,7 +103,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
       localStorage.setItem("token", token);
       onLoginSuccess(token);
       setAuth(true);
-      navigate("/welcome");
+      navigate("/dashboard");
     }
   }, [setAuth, navigate, onLoginSuccess]);
 

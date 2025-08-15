@@ -1,156 +1,183 @@
-import { useState, useEffect, useRef } from "react"
-import { getConversations, searchUsers, subscribeToNewConversations, initializeConversation } from "../services/messageService"
-import { Input } from "./ui/input"
-import { Button } from "./ui/button"
-import { Skeleton } from "./ui/skeleton"
-import { Search, X, Loader2 } from "lucide-react"
-import { ScrollArea } from "./ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
-import { toast } from "react-hot-toast"
+import { useState, useEffect, useRef } from "react";
+import {
+  getConversations,
+  searchUsers,
+  subscribeToNewConversations,
+} from "../services/messageService";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { Skeleton } from "./ui/skeleton";
+import { Search, X, Loader2 } from "lucide-react";
+import { ScrollArea } from "./ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import NotificationPopup from "./ui/NotificationPopup";
 
-const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
-  const [conversations, setConversations] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [searching, setSearching] = useState(false)
-  const [error, setError] = useState(null)
-  const inputRef = useRef(null)
+const ConversationList = ({
+  onSelectConversation,
+  selectedConversationId,
+  onConversationCreated,
+  onReceiverInfoFetched,
+}) => {
+  const [conversations, setConversations] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState(null);
+  const [notification, setNotification] = useState(null); // State for NotificationPopup
+  const inputRef = useRef(null);
 
   // Debounce search
-  const searchTimeout = useRef(null)
+  const searchTimeout = useRef(null);
 
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        setLoading(true)
-        setError(null)
-        const fetchedConversations = await getConversations()
-        setConversations(fetchedConversations)
+        setLoading(true);
+        setError(null);
+        const fetchedConversations = await getConversations();
+        setConversations(fetchedConversations);
       } catch (err) {
-        console.error("Error fetching conversations:", err)
-        setError("Failed to load conversations")
+        console.error("Error fetching conversations:", err);
+        setError("Failed to load conversations");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchConversations()
+    fetchConversations();
 
     const unsubscribe = subscribeToNewConversations((newConversation) => {
       setConversations((prevConversations) => {
-        // Check if conversation already exists
         const exists = prevConversations.some(
-          (conv) => conv._id === newConversation._id || conv.participants?.some((p) => p._id === newConversation._id),
-        )
+          (conv) =>
+            conv._id === newConversation._id ||
+            conv.participants?.some((p) => p._id === newConversation._id)
+        );
         if (!exists) {
-          return [newConversation, ...prevConversations]
+          setNotification({ message: "New chat created.", type: "success" }); // Show notification
+          return [newConversation, ...prevConversations];
         }
-        return prevConversations
-      })
-    })
+        return prevConversations;
+      });
+    });
 
     return () => {
       if (typeof unsubscribe === "function") {
-        unsubscribe()
+        unsubscribe();
       }
-    }
-  }, [])
+    };
+  }, []);
 
   const handleSearch = async (query) => {
     if (!query.trim()) {
-      setSearchResults([])
-      return
+      setSearchResults([]);
+      return;
     }
 
     try {
-      setSearching(true)
-      const results = await searchUsers(query)
-      // Filter out current user from search results
-      const currentUserId = localStorage.getItem("userId")
-      const filteredResults = results.filter((user) => user._id !== currentUserId)
-      setSearchResults(filteredResults)
+      setSearching(true);
+      const results = await searchUsers(query);
+      const currentUserId = localStorage.getItem("userId");
+      const filteredResults = results.filter(
+        (user) => user._id !== currentUserId
+      );
+      setSearchResults(filteredResults);
     } catch (err) {
-      console.error("Search error:", err)
-      toast.error("Failed to search users")
+      console.error("Search error:", err);
+      setNotification({ message: "Failed to search users", type: "error" }); // Show notification
     } finally {
-      setSearching(false)
+      setSearching(false);
     }
-  }
+  };
 
   const handleInputChange = (e) => {
-    const query = e.target.value
-    setSearchQuery(query)
+    const query = e.target.value;
+    setSearchQuery(query);
 
-    // Clear previous timeout
     if (searchTimeout.current) {
-      clearTimeout(searchTimeout.current)
+      clearTimeout(searchTimeout.current);
     }
 
-    // Set new timeout
     searchTimeout.current = setTimeout(() => {
-      handleSearch(query)
-    }, 300) // Debounce for 300ms
-  }
+      handleSearch(query);
+    }, 300);
+  };
 
   const handleSelectUser = async (userId) => {
     if (!userId) return;
-  
+
     try {
-      // Check if conversation already exists
       const existingConversation = conversations.find(
-        (conv) => conv._id === userId || conv.participants?.some((p) => p._id === userId)
+        (conv) =>
+          conv._id === userId ||
+          conv.participants?.some((p) => p._id === userId)
       );
-  
+
       if (!existingConversation) {
-        // Initialize conversation with a first message
-        const initialMessage = await initializeConversation(userId);
-        
-        // Create a conversation object from the initial message
+        // Find user details from searchResults
+        const userDetails = searchResults.find((user) => user._id === userId);
+
+        if (!userDetails) {
+          throw new Error("User details not found in search results");
+        }
+
+        const receiverInfo = {
+          username: userDetails.username,
+          isOnline: false, // Default to offline for new conversations
+          lastSeen: null, // No last seen data for new conversations
+          profileImage: userDetails.profileImage || "",
+        };
+
         const newConversation = {
           _id: userId,
-          lastMessage: initialMessage,
-          participants: [
-            initialMessage.sender,
-            initialMessage.recipient
-          ]
+          lastMessage: null, // No initial message
+          participants: [userDetails], // Use user details from searchResults
         };
-        
-        // Update conversations list
-        setConversations(prevConversations => [newConversation, ...prevConversations]);
+
+        setConversations((prevConversations) => [
+          newConversation,
+          ...prevConversations,
+        ]);
+        setNotification({ message: "Conversation started.", type: "success" }); // Show notification
+
+        // Notify parent about the new conversation and receiver info
+        if (onConversationCreated) {
+          onConversationCreated(newConversation);
+        }
+        if (onReceiverInfoFetched) {
+          onReceiverInfoFetched(receiverInfo);
+        }
       }
-  
-      // Select the conversation
+
       onSelectConversation(userId);
-  
-      // Clear search
       setSearchQuery("");
       setSearchResults([]);
       inputRef.current?.focus();
     } catch (err) {
       console.error("Error selecting user:", err);
-      toast.error("Failed to start conversation");
+      setNotification({
+        message: "Failed to start conversation",
+        type: "error",
+      }); // Show notification
     }
   };
 
-
-
   const clearSearch = () => {
-    setSearchQuery("")
-    setSearchResults([])
-    inputRef.current?.focus()
-  }
+    setSearchQuery("");
+    setSearchResults([]);
+    inputRef.current?.focus();
+  };
 
   const renderConversationOrUser = (item) => {
     if (!item || typeof item !== "object" || !item._id) {
       console.error("Invalid item:", item);
       return null;
     }
-  
+
     const isSelected = selectedConversationId === item._id;
     const currentUserId = localStorage.getItem("userId");
-    
-    // For search results
+
     if (searchResults.includes(item)) {
       return (
         <div
@@ -162,9 +189,12 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
         >
           <div className="flex items-center space-x-3">
             <Avatar className="w-10 h-10">
-              <AvatarImage 
-                src={item.profileImage || `https://api.dicebear.com/6.x/avataaars/svg?seed=${item.username}`} 
-                alt={`${item.username}'s avatar`} 
+              <AvatarImage
+                src={
+                  item.profileImage ||
+                  `https://api.dicebear.com/6.x/avataaars/svg?seed=${item.username}`
+                }
+                alt={`${item.username}'s avatar`}
               />
               <AvatarFallback>{item.username[0]}</AvatarFallback>
             </Avatar>
@@ -175,11 +205,12 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
         </div>
       );
     }
-  
-    // For conversations
-    const otherUser = item.participants?.find(p => p._id !== currentUserId);
+
+    const otherUser = item.participants?.find(
+      (p) => p && p._id !== currentUserId
+    );
     const lastMessage = item.lastMessage?.content || "No messages yet";
-  
+
     return (
       <div
         key={item._id}
@@ -190,9 +221,12 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
       >
         <div className="flex items-center space-x-3">
           <Avatar className="w-10 h-10">
-            <AvatarImage 
-              src={otherUser?.profileImage || `https://api.dicebear.com/6.x/avataaars/svg?seed=${otherUser?.username}`} 
-              alt={`${otherUser?.username}'s avatar`} 
+            <AvatarImage
+              src={
+                otherUser?.profileImage ||
+                `https://api.dicebear.com/6.x/avataaars/svg?seed=${otherUser?.username}`
+              }
+              alt={`${otherUser?.username}'s avatar`}
             />
             <AvatarFallback>{otherUser?.username?.[0] || "?"}</AvatarFallback>
           </Avatar>
@@ -206,7 +240,9 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
                 aria-label={item.isOnline ? "Online" : "Offline"}
               />
             </div>
-            <small className="text-gray-300 truncate block">{lastMessage}</small>
+            <small className="text-gray-300 truncate block">
+              {lastMessage}
+            </small>
           </div>
         </div>
       </div>
@@ -254,14 +290,18 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
           )}
 
           {!searching && searchQuery.trim() && searchResults.length === 0 && (
-            <p className="text-sm text-gray-400 mb-4">No results found for "{searchQuery}"</p>
+            <p className="text-sm text-gray-400 mb-4">
+              No results found for "{searchQuery}"
+            </p>
           )}
 
           {!searchQuery && (
             <>
               <h2 className="text-white mb-2 font-semibold">Conversations</h2>
               {loading ? (
-                [...Array(5)].map((_, i) => <Skeleton key={i} className="w-full h-16 mb-2 bg-gray-800" />)
+                [...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="w-full h-16 mb-2 bg-gray-800" />
+                ))
               ) : error ? (
                 <p className="text-red-500">{error}</p>
               ) : conversations.length === 0 ? (
@@ -273,9 +313,16 @@ const ConversationList = ({ onSelectConversation, selectedConversationId }) => {
           )}
         </div>
       </ScrollArea>
+      {notification && (
+        <NotificationPopup
+          key={notification.message}
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
-  )
-}
+  );
+};
 
-export default ConversationList
-
+export default ConversationList;

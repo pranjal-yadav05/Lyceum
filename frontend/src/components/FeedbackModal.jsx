@@ -1,4 +1,4 @@
-import React, { Fragment, useState, useEffect } from "react";
+import React, { Fragment, useState } from "react";
 import ReactDOM from "react-dom";
 import { Dialog, Transition } from "@headlessui/react";
 import { Button } from "./ui/button";
@@ -16,6 +16,9 @@ const FeedbackModal = ({ isOpen, onClose }) => {
 
     setIsSubmitting(true);
     try {
+      // Include the Authorization header with the token in the request
+      const token = localStorage.getItem("token");
+
       await axios.post(
         `${process.env.REACT_APP_API_URL}/feedback`,
         { feedback },
@@ -23,6 +26,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
           withCredentials: true,
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           timeout: 5000,
         }

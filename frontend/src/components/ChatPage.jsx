@@ -1,74 +1,89 @@
-import { useState, useEffect, useRef, useCallback } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
-import ConversationList from "./ConversationList"
-import Chat from "./Chat"
-import LeftSidebar from "./LeftSidebar"
-import { initializeSocket, disconnectSocket, checkSocketConnection } from "../services/messageService"
-import { Button } from "./ui/button"
-import { Menu, ArrowLeft, Loader2, WifiOff } from "lucide-react"
-import { toast } from "react-hot-toast"
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import ConversationList from "./ConversationList";
+import Chat from "./Chat";
+import LeftSidebar from "./LeftSidebar";
+import {
+  initializeSocket,
+  disconnectSocket,
+  checkSocketConnection,
+} from "../services/messageService";
+import { Button } from "./ui/button";
+import { Menu, ArrowLeft, Loader2, WifiOff } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 const ChatPage = () => {
-  const [selectedConversationId, setSelectedConversationId] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [showConversations, setShowConversations] = useState(true)
-  const [isConnected, setIsConnected] = useState(false)
-  const navigate = useNavigate()
-  const location = useLocation()
-  const sidebarRef = useRef(null)
-  const [socket, setSocket] = useState(null)
-  const buttonRef = useRef(null)
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [receiverInfo, setReceiverInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showConversations, setShowConversations] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const sidebarRef = useRef(null);
+  const [socket, setSocket] = useState(null);
+  const buttonRef = useRef(null);
 
-  const setupSocket = useCallback(async () => {
-    try {
-      const socket = await initializeSocket()
-      setSocket(socket)
-      setIsConnected(true)
-      setIsLoading(false)
-      toast.success("Connected to server")
-    }  catch (error) {
-      console.error("Socket setup error:", error);
-      toast.error("Failed to connect to server: " + error.message);
-      setIsConnected(false);
-      setIsLoading(false);
-      
-      // Only redirect if it's specifically a token issue
-      if (error.message.includes("No authentication token found") || 
-          error.response?.status === 401 || 
-          error.response?.status === 403) {
-        console.log("Authentication error detected, redirecting to login");
-        navigate("/login");
+  const setupSocket = useCallback(
+    async (isMounted) => {
+      try {
+        const socket = await initializeSocket();
+        if (!isMounted) return; // Prevent state updates if unmounted
+        setSocket(socket);
+        setIsConnected(true);
+        setIsLoading(false);
+        // toast.success("Connected to server");
+      } catch (error) {
+        if (!isMounted) return; // Prevent state updates if unmounted
+        console.error("Socket setup error:", error);
+        toast.error("Failed to connect to server: " + error.message);
+        setIsConnected(false);
+        setIsLoading(false);
+
+        // Only redirect if it's specifically a token issue
+        if (
+          error.message.includes("No authentication token found") ||
+          error.response?.status === 401 ||
+          error.response?.status === 403
+        ) {
+          // console.log("Authentication error detected, redirecting to login");
+          navigate("/login");
+        }
       }
-    }
-  }, [navigate])
+    },
+    [navigate]
+  );
 
   useEffect(() => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("token");
 
-    console.log("Token on ChatPage load:", token ? "Token exists" : "No token");
+    // console.log("Token on ChatPage load:", token ? "Token exists" : "No token");
 
     if (!token) {
-      navigate("/login")
-      return
+      navigate("/login");
+      return;
     }
 
-    setupSocket()
+    let isMounted = true; // Track if the component is still mounted
+
+    setupSocket(isMounted);
 
     return () => {
-      disconnectSocket()
-      setSocket(null)
-    }
-  }, [navigate, setupSocket])
+      isMounted = false; // Mark as unmounted
+      disconnectSocket();
+      setSocket(null);
+    };
+  }, [navigate, setupSocket]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const conversationId = params.get("conversation")
+    const params = new URLSearchParams(location.search);
+    const conversationId = params.get("conversation");
     if (conversationId) {
-      setSelectedConversationId(conversationId)
-      setShowConversations(false)
+      setSelectedConversationId(conversationId);
+      setShowConversations(false);
     }
-  }, [location])
+  }, [location]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -79,44 +94,58 @@ const ChatPage = () => {
         buttonRef.current &&
         !buttonRef.current.contains(event.target)
       ) {
-        setIsSidebarOpen(false)
+        setIsSidebarOpen(false);
       }
-    }
+    };
 
-    document.addEventListener("mousedown", handleClickOutside)
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [isSidebarOpen])
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isSidebarOpen]);
 
   const handleSelectConversation = (id) => {
-    setSelectedConversationId(id)
-    setShowConversations(false)
-    navigate(`?conversation=${id}`, { replace: true })
-  }
+    setSelectedConversationId(id);
+    setShowConversations(false);
+    navigate(`?conversation=${id}`, { replace: true });
+  };
+
+  const handleReceiverInfoFetched = (info) => {
+    setReceiverInfo(info);
+  };
 
   const handleReconnect = async () => {
-    toast.loading("Attempting to reconnect...")
+    toast.loading("Attempting to reconnect...");
     try {
-      const isConnected = await checkSocketConnection()
+      const isConnected = await checkSocketConnection();
       if (isConnected) {
-        setIsConnected(true)
-        toast.success("Reconnected to server")
+        setIsConnected(true);
+        // toast.success("Reconnected to server");
       } else {
-        throw new Error("Failed to reconnect")
+        throw new Error("Failed to reconnect");
       }
     } catch (error) {
-      console.error("Reconnection error:", error)
-      toast.error("Failed to reconnect")
+      console.error("Reconnection error:", error);
+      toast.error("Failed to reconnect");
     }
-  }
+  };
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Your timeout logic here
+    }, 20000);
+
+    return () => {
+      clearTimeout(timeoutId); // Clear the timeout on unmount
+    };
+  }, []);
 
   if (isLoading) {
     return (
       <div className="flex h-screen bg-[#1a103d] items-center justify-center">
         <Loader2 className="w-8 h-8 text-[#6B21A8] animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -126,7 +155,10 @@ const ChatPage = () => {
         {/* Left Sidebar */}
         <div className="relative">
           {isSidebarOpen && (
-            <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setIsSidebarOpen(false)} />
+            <div
+              className="fixed inset-0 bg-black/50 z-20 md:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            />
           )}
 
           <LeftSidebar
@@ -134,7 +166,9 @@ const ChatPage = () => {
             closeSidebar={() => setIsSidebarOpen(false)}
             ref={sidebarRef}
             className={`fixed md:relative z-30 h-full transition-transform duration-300 ease-in-out ${
-              isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+              isSidebarOpen
+                ? "translate-x-0"
+                : "-translate-x-full md:translate-x-0"
             }`}
           />
         </div>
@@ -143,8 +177,8 @@ const ChatPage = () => {
         <div className="flex flex-1 md:ml-16">
           {/* Conversations List */}
           <div
-            className={`w-full md:w-80 bg-gray-900 flex flex-col ${
-              selectedConversationId && !showConversations ? "hidden md:flex" : "flex"
+            className={`w-full md:w-80 bg-gray-900 flex flex-col md:flex ${
+              selectedConversationId && !showConversations ? "hidden" : "flex"
             }`}
           >
             <div className="flex items-center p-4 border-b border-gray-800">
@@ -163,6 +197,7 @@ const ChatPage = () => {
               <ConversationList
                 onSelectConversation={handleSelectConversation}
                 selectedConversationId={selectedConversationId}
+                onReceiverInfoFetched={handleReceiverInfoFetched}
               />
             </div>
           </div>
@@ -170,7 +205,7 @@ const ChatPage = () => {
           {/* Chat Area */}
           <div
             className={`flex-1 flex flex-col ${
-              !selectedConversationId && !showConversations ? "hidden md:flex" : "flex"
+              !selectedConversationId && showConversations ? "hidden" : "flex"
             }`}
           >
             {selectedConversationId && (
@@ -179,8 +214,8 @@ const ChatPage = () => {
                   variant="ghost"
                   className="flex items-center"
                   onClick={() => {
-                    setShowConversations(true)
-                    setSelectedConversationId(null)
+                    setShowConversations(true);
+                    setSelectedConversationId(null);
                   }}
                 >
                   <ArrowLeft className="h-5 w-5 mr-2" />
@@ -193,6 +228,7 @@ const ChatPage = () => {
                 selectedUserId={selectedConversationId}
                 socket={socket}
                 onConversationCreated={handleSelectConversation}
+                initialReceiverInfo={receiverInfo}
               />
             </div>
           </div>
@@ -218,8 +254,7 @@ const ChatPage = () => {
     // <div>
     //   Under Construction...🚧
     // </div>
-  )
-}
+  );
+};
 
-export default ChatPage
-
+export default ChatPage;

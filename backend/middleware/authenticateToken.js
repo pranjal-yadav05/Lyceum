@@ -11,7 +11,7 @@ export const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (token == null) {
-    console.log("No token provided");
+    // console.log("No token provided");
     return res.status(401).json({ error: "No authentication token provided" });
   }
 
@@ -22,7 +22,7 @@ export const authenticateToken = async (req, res, next) => {
     // Check if user exists
     const user = await User.findById(decoded.id);
     if (!user) {
-      console.log("User not found:", decoded.id);
+      // console.log("User not found:", decoded.id);
       return res.status(403).json({ error: "User not found" });
     }
     

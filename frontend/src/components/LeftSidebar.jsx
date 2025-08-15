@@ -45,10 +45,10 @@ const LeftSidebar = forwardRef(
     const closeFeedbackModal = () => setIsFeedbackModalOpen(false);
 
     const navItems = [
-      { icon: Home, title: "Home", path: "/welcome" },
+      { icon: Home, title: "Dashboard", path: "/dashboard" },
       { icon: LayoutGrid, title: "Forums", path: "/forum" },
-      { icon: MessageSquare, title: "Messages", path: "/chat-list" },
-      { icon: Search, title: "Search", onClick: openSearchDrawer },
+      { icon: MessageSquare, title: "Direct Messages", path: "/chat" },
+      { icon: Search, title: "Search Users", onClick: openSearchDrawer },
     ];
 
     const isActive = (path) => {
@@ -72,14 +72,14 @@ const LeftSidebar = forwardRef(
           <Tooltip>
             <TooltipTrigger asChild>
               <div
-                onClick={() => handleNavigation("/welcome")}
+                onClick={() => handleNavigation("/dashboard")}
                 className="w-14 h-14 rounded-full cursor-pointer flex items-center justify-center group transition-all duration-300 border-2 border-purple-600 hover:border-purple-500"
               >
                 <img src="/favicon.ico" alt="Lyceum" className="w-10 h-10" />
               </div>
             </TooltipTrigger>
             <TooltipContent side="right" className="hidden md:block">
-              <p>Go to Welcome Page</p>
+              <p>Go to Dashboard</p>
             </TooltipContent>
           </Tooltip>
 

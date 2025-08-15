@@ -6,6 +6,8 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
+import { generateToken, blacklistToken } from "../utils/tokenManager.js";
+import { auditLogger } from "../middleware/auditLogger.js";
 
 const router = express.Router();
 dotenv.config();
@@ -13,14 +15,8 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET;
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Helper function to generate JWT
-const generateToken = (user) => {
-  return jwt.sign(
-    { id: user._id, email: user.email, username: user.username },
-    JWT_SECRET,
-    { expiresIn: "7d" }
-  );
-};
+// Apply audit logging to all auth routes
+router.use(auditLogger);
 
 passport.use(
   new GoogleStrategy(
@@ -197,6 +193,7 @@ router.post("/check-user", async (req, res) => {
   }
 });
 
+// Login route
 router.post("/login", async (req, res) => {
   const { identifier, password } = req.body;
 
@@ -215,35 +212,40 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const isPasswordValid = await user.isPasswordValid(password);
+    const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const token = generateToken(user);
     req.session.user = user;
-    res.json({ token });
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-router.post("/logout", (req, res) => {
-  res.clearCookie("token");
-
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        console.error("Error destroying session:", err);
-        return res.status(500).json({ error: "Error logging out" });
-      } else {
-        res.clearCookie("connect.sid");
-        return res.json({ success: true, message: "Logged out successfully" });
-      }
-    });
-  } else {
-    return res.json({ success: true, message: "Logged out successfully" });
+// Logout route
+router.post("/logout", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (token) {
+      await blacklistToken(token);
+    }
+    res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

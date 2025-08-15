@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Trash2, Download, Loader, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import { Trash2, Download, Loader, AlertCircle } from "lucide-react";
+import axios from "axios";
 const BlobManager = () => {
   const [blobs, setBlobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -10,7 +10,7 @@ const BlobManager = () => {
     fetchBlobs();
   }, []);
 
-  const getAuthToken = () => localStorage.getItem('token');
+  const getAuthToken = () => localStorage.getItem("token");
 
   const fetchBlobs = async () => {
     try {
@@ -18,14 +18,17 @@ const BlobManager = () => {
       setError(null);
 
       const token = getAuthToken();
-      if (!token) throw new Error('Authentication token not found');
+      if (!token) throw new Error("Authentication token not found");
 
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/storage/blobs`);
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/storage/blobs`
+      );
 
-      if (response.status === 401) throw new Error('Unauthorized. Please log in again.');
+      if (response.status === 401)
+        throw new Error("Unauthorized. Please log in again.");
 
       const data = await response.data;
-      console.log(response.data.blobs[0])
+      // console.log(response.data.blobs[0]);
       setBlobs(data.blobs || []);
     } catch (err) {
       setError(err.message);
@@ -35,22 +38,25 @@ const BlobManager = () => {
   };
 
   const handleDelete = async (blobUrl) => {
-    if (!window.confirm('Are you sure you want to delete this file?')) return;
-  
+    if (!window.confirm("Are you sure you want to delete this file?")) return;
+
     try {
-      const response = await axios.delete(`${process.env.REACT_APP_API_URL}/storage/blobs`, {
-        params: { url: blobUrl }, // Send the full URL as a query parameter
-      });
-  
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/storage/blobs`,
+        {
+          params: { url: blobUrl }, // Send the full URL as a query parameter
+        }
+      );
+
       if (response.status === 200) {
         setBlobs((prev) => prev.filter((blob) => blob.url !== blobUrl));
       }
     } catch (err) {
-      console.error('Error deleting blob:', err);
+      console.error("Error deleting blob:", err);
       setError(err.message);
     }
   };
-  
+
   if (error) {
     return (
       <div className="p-4 bg-red-50 text-red-600 rounded-md">
@@ -58,9 +64,9 @@ const BlobManager = () => {
           <AlertCircle className="mr-2" /> Error:
         </p>
         <p className="mt-1">{error}</p>
-        {error.includes('Unauthorized') && (
+        {error.includes("Unauthorized") && (
           <button
-            onClick={() => (window.location.href = '/login')}
+            onClick={() => (window.location.href = "/login")}
             className="mt-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
           >
             Go to Login
@@ -98,8 +104,8 @@ const BlobManager = () => {
                     </div>
                     <img src={blob.url}></img>
                     <div className="text-sm text-gray-500 mt-1">
-                      Size: {blob.size || 'Unknown'} • Uploaded:{' '}
-                      {blob.uploadedAt || 'Unknown'}
+                      Size: {blob.size || "Unknown"} • Uploaded:{" "}
+                      {blob.uploadedAt || "Unknown"}
                     </div>
                   </div>
 
@@ -127,6 +133,6 @@ const BlobManager = () => {
       )}
     </div>
   );
-}
+};
 
-export default BlobManager
+export default BlobManager;

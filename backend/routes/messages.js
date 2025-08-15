@@ -1,25 +1,25 @@
-import express from "express"
-import authenticateToken from "../middleware/authenticateToken.js"
-import Message from "../models/Message.js"
-import mongoose from "mongoose"
-import User from "../models/User.js"
+import express from "express";
+import authenticateToken from "../middleware/authenticateToken.js";
+import Message from "../models/Message.js";
+import mongoose from "mongoose";
+import User from "../models/User.js";
 
-const router = express.Router()
+const router = express.Router();
 
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const { recipientId, content } = req.body;
 
     if (!recipientId || !content) {
-      return res.status(400).json({ 
-        error: "Recipient ID and content are required" 
+      return res.status(400).json({
+        error: "Recipient ID and content are required",
       });
     }
 
     const recipientExists = await User.exists({ _id: recipientId });
     if (!recipientExists) {
       return res.status(404).json({
-        error: "Recipient not found"
+        error: "Recipient not found",
       });
     }
 
@@ -27,7 +27,7 @@ router.post("/", authenticateToken, async (req, res) => {
       sender: req.user.id,
       recipient: recipientId,
       content: content.trim(),
-      createdAt: new Date()
+      createdAt: new Date(),
     });
 
     await message.save();
@@ -46,14 +46,13 @@ router.post("/", authenticateToken, async (req, res) => {
       content: populatedMessage.content,
       sender: populatedMessage.sender,
       recipient: populatedMessage.recipient,
-      createdAt: populatedMessage.createdAt
+      createdAt: populatedMessage.createdAt,
     });
-
   } catch (error) {
     console.error("Error sending message:", error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: "An error occurred while sending the message",
-      details: error.message 
+      details: error.message,
     });
   }
 });
@@ -71,11 +70,13 @@ router.get("/conversation/:userId", authenticateToken, async (req, res) => {
       // Include profileImage in both sender and recipient population
       .populate("sender", "username profileImage")
       .populate("recipient", "username profileImage");
-    
+
     res.json(messages);
   } catch (error) {
     console.error("Error fetching conversation:", error);
-    res.status(500).json({ error: "An error occurred while fetching the conversation" });
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching the conversation" });
   }
 });
 
@@ -87,7 +88,7 @@ router.get("/search", authenticateToken, async (req, res) => {
       username: { $regex: query, $options: "i" },
       _id: { $ne: req.user.id },
     }).select("username _id profileImage");
-    
+
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -99,15 +100,12 @@ router.get("/search", authenticateToken, async (req, res) => {
 router.get("/conversations", authenticateToken, async (req, res) => {
   try {
     const currentUserId = new mongoose.Types.ObjectId(req.user.id);
-    
+
     // First get all messages with proper population
     const messages = await Message.aggregate([
       {
         $match: {
-          $or: [
-            { sender: currentUserId },
-            { recipient: currentUserId },
-          ],
+          $or: [{ sender: currentUserId }, { recipient: currentUserId }],
         },
       },
       {
@@ -119,8 +117,8 @@ router.get("/conversations", authenticateToken, async (req, res) => {
             $cond: {
               if: { $eq: ["$sender", currentUserId] },
               then: "$recipient",
-              else: "$sender"
-            }
+              else: "$sender",
+            },
           },
           lastMessage: { $first: "$$ROOT" },
         },
@@ -131,23 +129,23 @@ router.get("/conversations", authenticateToken, async (req, res) => {
           from: "users",
           localField: "lastMessage.sender",
           foreignField: "_id",
-          as: "senderDetails"
-        }
+          as: "senderDetails",
+        },
       },
       {
         $lookup: {
           from: "users",
           localField: "lastMessage.recipient",
           foreignField: "_id",
-          as: "recipientDetails"
-        }
+          as: "recipientDetails",
+        },
       },
       // Unwind the arrays created by lookup
       {
-        $unwind: "$senderDetails"
+        $unwind: "$senderDetails",
       },
       {
-        $unwind: "$recipientDetails"
+        $unwind: "$recipientDetails",
       },
       // Project the final structure
       {
@@ -160,39 +158,40 @@ router.get("/conversations", authenticateToken, async (req, res) => {
             sender: {
               _id: "$senderDetails._id",
               username: "$senderDetails.username",
-              profileImage: "$senderDetails.profileImage"
+              profileImage: "$senderDetails.profileImage",
             },
             recipient: {
               _id: "$recipientDetails._id",
               username: "$recipientDetails.username",
-              profileImage: "$recipientDetails.profileImage"
-            }
-          }
-        }
-      }
+              profileImage: "$recipientDetails.profileImage",
+            },
+          },
+        },
+      },
     ]);
 
     // Transform the data into the expected format
-    const conversations = messages.map(msg => {
-      const otherUser = msg.lastMessage.sender._id.toString() === req.user.id
-        ? msg.lastMessage.recipient
-        : msg.lastMessage.sender;
+    const conversations = messages.map((msg) => {
+      const otherUser =
+        msg.lastMessage.sender._id.toString() === req.user.id
+          ? msg.lastMessage.recipient
+          : msg.lastMessage.sender;
 
       return {
         _id: otherUser._id,
         participants: [msg.lastMessage.sender, msg.lastMessage.recipient],
         lastMessage: msg.lastMessage,
         username: otherUser.username,
-        profileImage: otherUser.profileImage
+        profileImage: otherUser.profileImage,
       };
     });
 
     res.json(conversations);
   } catch (error) {
     console.error("Error in conversations route:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch conversations",
-      details: error.message
+      details: error.message,
     });
   }
 });

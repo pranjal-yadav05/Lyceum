@@ -6,49 +6,38 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { MessageSquare, Users, Plus, LogIn, Video, Menu } from "lucide-react";
 import LeftSidebar from "./LeftSidebar";
 import SearchDrawer from "./SearchDrawer";
-import axios from "axios";
 import AnimatedCounter from "./AnimatedCounter";
 import LoadingSpinner from "./LoadingSpinner";
 import UnderDevelopmentModal from "./UnderDevelopmentModal"; // Import the modal component
 
 const API_URL = process.env.REACT_APP_API_URL;
 
-const WelcomePage = ({ username }) => {
+const Dashboard = ({ username }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
   const navigate = useNavigate();
   const sidebarRef = useRef(null);
   const buttonRef = useRef(null);
-  const [stats, setStats] = useState({
-    activeTopics: 0,
-    totalPosts: 0,
-    totalStudyHours: 0,
-    totalVisitors: 0,
-  });
-
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        setIsLoading(true);
-        const response = await axios.get(`${API_URL}/stats`, {
-          withCredentials: true,
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 5000,
-        });
-        setStats((prevStats) => ({
-          ...prevStats,
-          ...response.data,
-        }));
+        setLoadingStats(true);
+        const response = await fetch(`${API_URL}/stats`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch stats");
+        }
+        const data = await response.json();
+        setStats(data);
       } catch (error) {
         console.error("Error fetching stats:", error);
+        setStats(null);
       } finally {
-        setIsLoading(false);
+        setLoadingStats(false);
       }
     };
 
@@ -57,13 +46,13 @@ const WelcomePage = ({ username }) => {
 
   const handleJoinRoom = () => {
     if (roomId.trim()) {
-      navigate(`/video-chat/${roomId}`);
+      navigate(`/studyroom/${roomId}`);
     }
   };
 
   const handleCreateRoom = () => {
     const newRoomId = Math.random().toString(36).substring(7);
-    navigate(`/video-chat/${newRoomId}`);
+    navigate(`/studyroom/${newRoomId}`);
   };
 
   const closeSidebar = () => {
@@ -142,7 +131,7 @@ const WelcomePage = ({ username }) => {
                 <Menu className="h-6 w-6" />
               </Button>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-t from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4 animate-fade-in px-4 md:px-6 py-2 md:py-3">
+              <h1 className="text-center text-4xl md:text-5xl lg:text-6xl font-bold bg-gradient-to-t from-purple-400 to-pink-600 bg-clip-text text-transparent mb-4 animate-fade-in px-4 md:px-6 py-2 md:py-3">
                 Hello {username},
               </h1>
               <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-300 animate-slide-up">
@@ -152,12 +141,12 @@ const WelcomePage = ({ username }) => {
 
             {/* Main content */}
             <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mb-6 md:mb-8 mt-8">
-              {/* Video Chat Card */}
+              {/* Study Room Card */}
               <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
                     <Video className="mr-2 h-5 w-5 flex-shrink-0" />
-                    <span className="truncate">Video Chat Rooms</span>
+                    <span className="truncate">Virtual Study Rooms</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -235,7 +224,7 @@ const WelcomePage = ({ username }) => {
 
             {/* Stats cards */}
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              {isLoading ? (
+              {loadingStats ? (
                 Array(4)
                   .fill(0)
                   .map((_, index) => (
@@ -248,7 +237,7 @@ const WelcomePage = ({ username }) => {
                       </CardContent>
                     </Card>
                   ))
-              ) : (
+              ) : stats ? (
                 <>
                   <Card className="bg-[#1a1425] border-purple-600/20">
                     <CardContent className="pt-6">
@@ -276,7 +265,7 @@ const WelcomePage = ({ username }) => {
                         Total Study Hours
                       </h3>
                       <div className="text-3xl font-bold text-purple-400">
-                        <AnimatedCounter value={stats.totalStudyHours} />
+                        {stats.totalStudyHours}
                       </div>
                     </CardContent>
                   </Card>
@@ -291,6 +280,14 @@ const WelcomePage = ({ username }) => {
                     </CardContent>
                   </Card>
                 </>
+              ) : (
+                <Card className="bg-[#1a1425] border-purple-600/20">
+                  <CardContent className="pt-6">
+                    <p className="text-center text-gray-400">
+                      Failed to load stats.
+                    </p>
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>
@@ -309,4 +306,4 @@ const WelcomePage = ({ username }) => {
   );
 };
 
-export default WelcomePage;
+export default Dashboard;

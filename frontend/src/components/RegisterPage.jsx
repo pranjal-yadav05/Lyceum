@@ -37,7 +37,7 @@ function RegisterPage({ onLoginSuccess }) {
       if (onLoginSuccess) {
         onLoginSuccess(res.data.token); // Update authentication state
       }
-      navigate("/welcome");
+      navigate("/dashboard");
     } catch (err) {
       setError("Google login failed");
     } finally {
@@ -74,7 +74,7 @@ function RegisterPage({ onLoginSuccess }) {
         if (onLoginSuccess) {
           onLoginSuccess(response.data.token); // Update authentication state
         }
-        navigate("/welcome");
+        navigate("/dashboard");
       }
     } catch (err) {
       setError(err.response?.data?.error || "Registration failed");
