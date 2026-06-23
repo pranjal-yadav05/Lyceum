@@ -89,7 +89,9 @@ function App() {
     } catch (err) {
       setUser(null);
       setSocketToken(null);
-      if (err.response?.status === 401 || err.response?.status === 403) {
+      const status = err.response?.status;
+      // No session, or backend not yet serving /api/me — treat as logged out.
+      if (status === 401 || status === 403 || status === 404) {
         return null;
       }
       setAuthError("Unable to connect to the server. Please try again.");
