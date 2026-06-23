@@ -124,8 +124,9 @@ app.use("/api/focus-sounds", focusSoundsRoutes);
 app.use("/api/admin/focus-sounds", adminFocusSoundsRoutes);
 app.use("/api/search", searchRoutes);
 
-app.get("/", (req, res) => res.json({ status: "ok" }));
-app.get("/api/health", (req, res) => res.json({ status: "ok" }));
+const healthPayload = { status: "ok", service: "lyceum-api" };
+app.get("/", (req, res) => res.json(healthPayload));
+app.get("/api/health", (req, res) => res.json(healthPayload));
 
 app.use(notFoundHandler);
 app.use(errorHandler);
