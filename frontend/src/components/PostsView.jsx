@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { Button } from "./ui/button";
 import { X, Info, Send, Edit, Reply, Smile } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 import { ScrollArea } from "./ui/scroll-area";
-import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import EmojiPicker from "emoji-picker-react";
-import ScrollToBottom from "react-scroll-to-bottom";
 import {
   Dialog,
   DialogContent,
@@ -36,33 +34,9 @@ export default function PostsView({ topicId, username, onClose }) {
   const [deletePostId, setDeletePostId] = useState(null);
   const scrollAreaRef = useRef(null);
   const textareaRef = useRef(null);
-  const scrollViewportRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchTopic();
-    fetchPosts();
-  }, [topicId]);
-
-  // Scroll to bottom when loading completes and when posts update
-  //   useEffect(() => {
-  //     if (!isLoadingPosts && scrollViewportRef.current) {
-  //       const viewport = scrollViewportRef.current;
-
-  //       // Check if the user is already near the bottom
-  //       const isNearBottom =
-  //         viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 100;
-
-  //       if (isNearBottom) {
-  //         viewport.scrollTo({
-  //           top: viewport.scrollHeight,
-  //           behavior: 'smooth',
-  //         });
-  //       }
-  //     }
-  //   }, [isLoadingPosts, posts]);
-
-  const fetchTopic = async () => {
+  const fetchTopic = useCallback(async () => {
     try {
       const response = await axios.get(`${API_URL}/topics/${topicId}`, {
         withCredentials: true,
@@ -71,9 +45,9 @@ export default function PostsView({ topicId, username, onClose }) {
     } catch (error) {
       console.error("Error fetching topic:", error);
     }
-  };
+  }, [topicId]);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setIsLoadingPosts(true);
     try {
       const response = await axios.get(`${API_URL}/topics/${topicId}/posts`, {
@@ -111,7 +85,30 @@ export default function PostsView({ topicId, username, onClose }) {
     } finally {
       setIsLoadingPosts(false);
     }
-  };
+  }, [topicId]);
+
+  useEffect(() => {
+    fetchTopic();
+    fetchPosts();
+  }, [fetchTopic, fetchPosts]);
+
+  // Scroll to bottom when loading completes and when posts update
+  //   useEffect(() => {
+  //     if (!isLoadingPosts && scrollViewportRef.current) {
+  //       const viewport = scrollViewportRef.current;
+
+  //       // Check if the user is already near the bottom
+  //       const isNearBottom =
+  //         viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 100;
+
+  //       if (isNearBottom) {
+  //         viewport.scrollTo({
+  //           top: viewport.scrollHeight,
+  //           behavior: 'smooth',
+  //         });
+  //       }
+  //     }
+  //   }, [isLoadingPosts, posts]);
 
   const handleCreatePost = async (e) => {
     e.preventDefault();

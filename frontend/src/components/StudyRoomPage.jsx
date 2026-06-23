@@ -240,6 +240,8 @@ const StudyRoomPage = () => {
       socket.current.disconnect();
       peer.current.destroy();
     };
+    // Intentionally run once per room — re-running would tear down WebRTC peers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, userName]);
 
   useEffect(() => {

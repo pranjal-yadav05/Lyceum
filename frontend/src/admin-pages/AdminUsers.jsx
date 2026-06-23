@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Container,
   Card,
@@ -28,7 +28,7 @@ const AdminUsers = () => {
   const [authOrder, setAuthOrder] = useState("none"); // Default auth order
   const navigate = useNavigate();
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(
@@ -68,11 +68,11 @@ const AdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sortBy, order, authOrder]);
 
   useEffect(() => {
     fetchUsers();
-  }, [sortBy, order, authOrder]); // Refetch users when sorting options change
+  }, [fetchUsers]);
 
   const formatDate = (dateString) => {
     if (!dateString) return "A long time ago";

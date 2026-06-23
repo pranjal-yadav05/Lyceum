@@ -16,7 +16,7 @@ export const ChatHeader = ({ username, isOnline, lastSeen, profileImage }) => {
       <div>
         <h2 className="text-lg font-semibold">{username}</h2>
         <p className="text-sm text-gray-400">
-          {isOnline ? "Online" : "Offline"}
+          {isOnline ? "Online" : formatLastSeen(lastSeen) || "Offline"}
         </p>
       </div>
     </div>
