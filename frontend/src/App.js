@@ -6,12 +6,20 @@ import {
   Navigate,
 } from "react-router-dom";
 import axios from "axios";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { AuthContext } from "./contexts/AuthContext";
 import { API_URL as CONFIG_API_URL } from "./config/env";
+import {
+  clearLegacyToken,
+  getLegacyToken,
+  persistLegacyToken,
+  readLegacySession,
+  normalizeAuthUser,
+} from "./lib/sessionAuth";
 
 const ForumPosts = lazy(() => import("./components/ForumPosts"));
 const SelectInterests = lazy(() => import("./components/SelectInterests"));
@@ -33,6 +41,7 @@ const AdminSecurity = lazy(() => import("./admin-pages/AdminSecurity"));
 const AdminFeedback = lazy(() => import("./admin-pages/AdminFeedback"));
 
 const API_URL = CONFIG_API_URL;
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const REQUIRED_ENV = [
   "REACT_APP_SOCKET_URL",
@@ -73,27 +82,59 @@ function ProtectedRoute({ isAuthenticated, children }) {
 
 axios.defaults.withCredentials = true;
 
+axios.interceptors.request.use((config) => {
+  const token = getLegacyToken();
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 function App() {
   const [user, setUser] = useState(null);
   const [socketToken, setSocketToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
 
+  const establishSessionFromToken = useCallback((token, apiUser) => {
+    const user = normalizeAuthUser(apiUser, token);
+    if (!user) return null;
+    persistLegacyToken(token, user);
+    setUser(user);
+    setSocketToken(token);
+    setAuthError(null);
+    return { user, socketToken: token };
+  }, []);
+
   const refreshAuth = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/me`);
-      setUser(data.user ?? null);
-      setSocketToken(data.socketToken ?? null);
+      if (data.user) {
+        setUser(data.user);
+        setSocketToken(data.socketToken ?? getLegacyToken());
+        setAuthError(null);
+        return data;
+      }
+      setUser(null);
+      setSocketToken(null);
       setAuthError(null);
       return data;
     } catch (err) {
-      setUser(null);
-      setSocketToken(null);
       const status = err.response?.status;
-      // No session, or backend not yet serving /api/me — treat as logged out.
       if (status === 401 || status === 403 || status === 404) {
+        const legacy = readLegacySession();
+        if (legacy) {
+          setUser(legacy.user);
+          setSocketToken(legacy.socketToken);
+          setAuthError(null);
+          return { user: legacy.user, socketToken: legacy.socketToken };
+        }
+        setUser(null);
+        setSocketToken(null);
         return null;
       }
+      setUser(null);
+      setSocketToken(null);
       setAuthError("Unable to connect to the server. Please try again.");
       return null;
     } finally {
@@ -104,9 +145,15 @@ function App() {
   const refreshSocketToken = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API_URL}/me`);
-      setSocketToken(data.socketToken);
-      return data.socketToken;
+      const token = data.socketToken ?? getLegacyToken();
+      setSocketToken(token);
+      return token;
     } catch {
+      const legacy = readLegacySession();
+      if (legacy?.socketToken) {
+        setSocketToken(legacy.socketToken);
+        return legacy.socketToken;
+      }
       return null;
     }
   }, []);
@@ -117,6 +164,7 @@ function App() {
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
+      clearLegacyToken();
       setUser(null);
       setSocketToken(null);
     }
@@ -135,6 +183,7 @@ function App() {
     isAuthenticated,
     isLoading,
     refreshAuth,
+    establishSessionFromToken,
     refreshSocketToken,
     logout,
   };
@@ -166,6 +215,7 @@ function App() {
   return (
     <ErrorBoundary>
       <EnvGuard>
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <AuthContext.Provider value={authValue}>
           <Router>
             <Suspense fallback={<PageLoader />}>
@@ -302,6 +352,7 @@ function App() {
             <Toaster position="top-right" />
           </Router>
         </AuthContext.Provider>
+        </GoogleOAuthProvider>
       </EnvGuard>
     </ErrorBoundary>
   );

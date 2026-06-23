@@ -6,6 +6,7 @@ export const AuthContext = createContext({
   isAuthenticated: false,
   isLoading: true,
   refreshAuth: async () => {},
+  establishSessionFromToken: () => null,
   logout: async () => {},
   refreshSocketToken: async () => null,
 });

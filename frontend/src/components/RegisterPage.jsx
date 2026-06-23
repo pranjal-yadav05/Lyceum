@@ -31,7 +31,7 @@ function RegisterPage({ onLoginSuccess }) {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
-  const { refreshAuth } = useAuth();
+  const { refreshAuth, establishSessionFromToken } = useAuth();
 
   const onSuccess = onLoginSuccess ?? refreshAuth;
 
@@ -46,11 +46,22 @@ function RegisterPage({ onLoginSuccess }) {
     }
 
     try {
-      await axios.post(`${API_URL}/auth/register`, {
+      const response = await axios.post(`${API_URL}/auth/register`, {
         username,
         email,
         password,
       });
+      if (response.data?.token) {
+        const session = establishSessionFromToken(response.data.token);
+        if (!session?.user) {
+          setError(
+            "Account created but session wasn't saved. Please try logging in."
+          );
+          return;
+        }
+        navigate("/dashboard");
+        return;
+      }
       const session = await onSuccess();
       if (!session?.user) {
         setError(
@@ -194,7 +205,16 @@ function RegisterPage({ onLoginSuccess }) {
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleSignInButton theme="filled_black" size="large" text="signup_with" />
+            <GoogleSignInButton
+              theme="filled_black"
+              size="large"
+              text="signup_with"
+              onAuthenticated={(token) => {
+                const session = establishSessionFromToken(token);
+                if (session?.user) navigate("/dashboard");
+              }}
+              onError={(message) => setError(message)}
+            />
           </CardFooter>
         </Card>
       </div>

@@ -26,9 +26,24 @@ function LoginPage({ onLoginSuccess }) {
   const [isPasswordRequired, setIsPasswordRequired] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, refreshAuth } = useAuth();
+  const { isAuthenticated, refreshAuth, establishSessionFromToken } = useAuth();
 
   const onSuccess = onLoginSuccess ?? refreshAuth;
+
+  const completeLogin = useCallback(
+    (token, apiUser) => {
+      const session = establishSessionFromToken(token, apiUser);
+      if (!session?.user) {
+        setError(
+          "Login succeeded but your session could not be started. Please try again."
+        );
+        return false;
+      }
+      navigate("/dashboard", { replace: true });
+      return true;
+    },
+    [establishSessionFromToken, navigate]
+  );
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -38,6 +53,12 @@ function LoginPage({ onLoginSuccess }) {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    const token = params.get("token");
+    if (token) {
+      completeLogin(token);
+      return;
+    }
+
     const errKey = params.get("error");
     if (!errKey) return;
     const messages = {
@@ -46,7 +67,7 @@ function LoginPage({ onLoginSuccess }) {
       google_failed: "Google sign-in failed. Please try again.",
     };
     setError(messages[errKey] ?? "Google sign-in failed. Please try again.");
-  }, [location.search]);
+  }, [location.search, completeLogin]);
 
   const handleIdentifierChange = (e) => {
     setIdentifier(e.target.value);
@@ -64,7 +85,14 @@ function LoginPage({ onLoginSuccess }) {
       setIsLoading(true);
       try {
         if (isPasswordRequired) {
-          await axios.post(`${API_URL}/auth/login`, { identifier, password });
+          const response = await axios.post(`${API_URL}/auth/login`, {
+            identifier,
+            password,
+          });
+          if (response.data?.token) {
+            completeLogin(response.data.token, response.data.user);
+            return;
+          }
           const session = await onSuccess();
           if (!session?.user) {
             setError(
@@ -96,7 +124,7 @@ function LoginPage({ onLoginSuccess }) {
         setIsLoading(false);
       }
     },
-    [identifier, password, isPasswordRequired, onSuccess, navigate]
+    [identifier, password, isPasswordRequired, onSuccess, navigate, completeLogin]
   );
 
   const logoPath = "/images/lyceum-logo.png";
@@ -221,7 +249,12 @@ function LoginPage({ onLoginSuccess }) {
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleSignInButton theme="filled_black" size="large" />
+            <GoogleSignInButton
+              theme="filled_black"
+              size="large"
+              onAuthenticated={(token, apiUser) => completeLogin(token, apiUser)}
+              onError={(message) => setError(message)}
+            />
           </CardFooter>
         </Card>
       </div>
