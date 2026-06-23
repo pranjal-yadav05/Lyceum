@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { Trash2, Download, Loader, AlertCircle } from "lucide-react";
 import axios from "axios";
+import { toast } from "react-hot-toast";
+import ConfirmDialog from "./ConfirmDialog";
+
 const BlobManager = () => {
   const [blobs, setBlobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [deleteUrl, setDeleteUrl] = useState(null);
 
   useEffect(() => {
     fetchBlobs();
   }, []);
 
-  const getAuthToken = () => localStorage.getItem("token");
-
   const fetchBlobs = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      const token = getAuthToken();
-      if (!token) throw new Error("Authentication token not found");
 
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/storage/blobs`
@@ -28,7 +27,6 @@ const BlobManager = () => {
         throw new Error("Unauthorized. Please log in again.");
 
       const data = await response.data;
-      // console.log(response.data.blobs[0]);
       setBlobs(data.blobs || []);
     } catch (err) {
       setError(err.message);
@@ -38,22 +36,21 @@ const BlobManager = () => {
   };
 
   const handleDelete = async (blobUrl) => {
-    if (!window.confirm("Are you sure you want to delete this file?")) return;
-
     try {
       const response = await axios.delete(
         `${process.env.REACT_APP_API_URL}/storage/blobs`,
         {
-          params: { url: blobUrl }, // Send the full URL as a query parameter
+          params: { url: blobUrl },
         }
       );
 
       if (response.status === 200) {
         setBlobs((prev) => prev.filter((blob) => blob.url !== blobUrl));
+        toast.success("File deleted");
       }
     } catch (err) {
       console.error("Error deleting blob:", err);
-      setError(err.message);
+      toast.error("Failed to delete file");
     }
   };
 
@@ -102,7 +99,7 @@ const BlobManager = () => {
                     <div className="font-medium text-gray-900 break-all">
                       {blob.pathname}
                     </div>
-                    <img src={blob.url}></img>
+                    <img src={blob.url} alt="" />
                     <div className="text-sm text-gray-500 mt-1">
                       Size: {blob.size || "Unknown"} • Uploaded:{" "}
                       {blob.uploadedAt || "Unknown"}
@@ -114,15 +111,15 @@ const BlobManager = () => {
                       href={blob.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-md"
                     >
-                      <Download size={20} />
+                      <Download className="h-5 w-5" />
                     </a>
                     <button
-                      onClick={() => handleDelete(blob.url)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                      onClick={() => setDeleteUrl(blob.url)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-md"
                     >
-                      <Trash2 size={20} />
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
@@ -131,6 +128,15 @@ const BlobManager = () => {
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleteUrl}
+        onOpenChange={(open) => !open && setDeleteUrl(null)}
+        title="Delete file?"
+        description="This file will be permanently removed from storage."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => handleDelete(deleteUrl)}
+      />
     </div>
   );
 };

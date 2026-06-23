@@ -23,7 +23,7 @@ export const auditLogger = async (req, res, next) => {
     try {
       if (req.user) {
         await AuditLog.create({
-          userId: req.user._id,
+          userId: req.user.id ?? req.user._id,
           action: req.method,
           resource: req.originalUrl,
           details: {

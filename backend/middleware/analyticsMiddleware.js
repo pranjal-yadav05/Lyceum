@@ -17,8 +17,10 @@ export const analyticsMiddleware = (req, res, next) => {
   if (!sessionId) {
     sessionId = generateSessionId();
     res.cookie("sessionId", sessionId, {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 24 * 60 * 60 * 1000,
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
     });
   }
 
@@ -27,7 +29,7 @@ export const analyticsMiddleware = (req, res, next) => {
 
   // Track page view
   if (req.method === "GET" && !req.path.startsWith("/api")) {
-    recordPageView(req.user?._id, sessionId, req.path).catch((error) => {
+    recordPageView(req.user?.id ?? req.user?._id, sessionId, req.path).catch((error) => {
       console.error("Error recording page view (non-blocking):", error);
     });
   }
@@ -47,7 +49,7 @@ export const analyticsMiddleware = (req, res, next) => {
   const referer = req.headers.referer;
   if (referer) {
     const fromPage = new URL(referer).pathname;
-    recordNavigation(req.user?._id, sessionId, fromPage, req.path).catch(
+    recordNavigation(req.user?.id ?? req.user?._id, sessionId, fromPage, req.path).catch(
       (error) => {
         console.error("Error recording navigation (non-blocking):", error);
       }
@@ -58,7 +60,7 @@ export const analyticsMiddleware = (req, res, next) => {
   if (req.path === "/api/search" && req.method === "GET") {
     const { query, type } = req.query;
     if (query) {
-      recordSearch(req.user?._id, sessionId, query, type || "user");
+      recordSearch(req.user?.id ?? req.user?._id, sessionId, query, type || "user");
     }
   }
 
@@ -66,7 +68,7 @@ export const analyticsMiddleware = (req, res, next) => {
   const originalSend = res.send;
   res.send = function (body) {
     if (res.statusCode >= 400) {
-      recordError(req.user?._id, sessionId, {
+      recordError(req.user?.id ?? req.user?._id, sessionId, {
         statusCode: res.statusCode,
         path: req.path,
         method: req.method,

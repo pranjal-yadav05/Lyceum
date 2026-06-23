@@ -33,22 +33,11 @@ const AdminUsers = () => {
       setLoading(true);
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/users`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          params: { sortBy, order }, // Pass sorting parameters
-        }
+        { params: { sortBy, order } }
       );
 
-      // Fetch authentication methods for users
       const authResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/admin/users-auth-methods`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `${process.env.REACT_APP_API_URL}/admin/users-auth-methods`
       );
 
       // Merge user data with authentication methods

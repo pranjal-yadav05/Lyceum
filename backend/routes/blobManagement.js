@@ -1,11 +1,11 @@
 import express from 'express';
 import { list, del } from '@vercel/blob';
-import authenticateToken from '../middleware/authenticateToken.js';
+import { isAdmin } from '../middleware/adminAuth.js';
 
 const router = express.Router();
 
 // List all blobs with pagination
-router.get('/blobs', async (req, res) => {
+router.get('/blobs', isAdmin, async (req, res) => {
   try {
     const { pageSize = 100, cursor } = req.query;
     
@@ -39,7 +39,7 @@ router.get('/blobs', async (req, res) => {
 });
 
 // Delete a specific blob
-router.delete('/blobs', async (req, res) => {
+router.delete('/blobs', isAdmin, async (req, res) => {
     const { url } = req.query; // Expect the full URL from the client
   
     try {

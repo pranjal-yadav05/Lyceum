@@ -8,6 +8,8 @@ import { Card, CardContent } from "./ui/card";
 
 const AdminLayout = ({ children }) => {
   const [error, setError] = useState(null);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
   const navigate = useNavigate();
@@ -15,31 +17,24 @@ const AdminLayout = ({ children }) => {
   useEffect(() => {
     const checkAdminAccess = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          throw new Error("Session expired");
-        }
-
         const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/admin/check-access`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+          `${process.env.REACT_APP_API_URL}/admin/check-access`
         );
 
         if (!response.data.isAdmin) {
           throw new Error("Access denied. Admin privileges required.");
         }
+        setIsAuthorized(true);
       } catch (err) {
         console.error("Admin access check failed:", err);
-        if (err.message === "Session expired") {
+        if (err.response?.status === 401) {
           setError("Session expired. Please login again.");
           navigate("/login");
         } else {
           setError(err.message);
         }
+      } finally {
+        setIsChecking(false);
       }
     };
 
@@ -51,12 +46,24 @@ const AdminLayout = ({ children }) => {
     // console.log("Search drawer opened");
   };
 
+  if (isChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1339] via-[#2a1f5a] to-[#3a2b7a]">
+        <div className="text-white/70">Verifying access...</div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1339] via-[#2a1f5a] to-[#3a2b7a] p-4">
         <ErrorAlert message={error} />
       </div>
     );
+  }
+
+  if (!isAuthorized) {
+    return null;
   }
 
   return (

@@ -4,33 +4,36 @@ import { authenticateToken } from "../middleware/authenticateToken.js";
 
 const router = express.Router();
 
-// Get all users
+// Get all users (public profile fields only)
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select("username profileImage");
     res.json(users);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Something went wrong" });
   }
 });
 
 // Send Friend Request
 router.post("/send", authenticateToken, async (req, res) => {
-  const { senderId, receiverId } = req.body; // these will be usernames now
+  const senderId = req.user.username;
+  const { receiverId } = req.body;
 
   try {
+    if (senderId === receiverId) {
+      return res.status(400).json({ error: "Cannot friend yourself" });
+    }
+
     const receiver = await User.findOne({ username: receiverId });
     if (!receiver) return res.status(404).json({ error: "User not found" });
 
-    // Check if a request already exists using username
     const alreadyRequested = receiver.friendRequests.some(
-      (req) => req.sender === senderId // store username instead of ID
+      (r) => r.sender === senderId
     );
     if (alreadyRequested) {
       return res.status(400).json({ error: "Friend request already sent" });
     }
 
-    // Add the friend request with username
     receiver.friendRequests.push({ sender: senderId });
     await receiver.save();
 
@@ -43,7 +46,8 @@ router.post("/send", authenticateToken, async (req, res) => {
 
 // Accept Friend Request
 router.post("/accept", authenticateToken, async (req, res) => {
-  const { senderId, receiverId } = req.body; // these will be usernames
+  const receiverId = req.user.username;
+  const { senderId } = req.body;
 
   try {
     const receiver = await User.findOne({ username: receiverId });
@@ -52,19 +56,16 @@ router.post("/accept", authenticateToken, async (req, res) => {
     if (!receiver || !sender)
       return res.status(404).json({ error: "User not found" });
 
-    // Check if the request exists
     const requestIndex = receiver.friendRequests.findIndex(
-      (req) => req.sender === senderId
+      (r) => r.sender === senderId
     );
     if (requestIndex === -1) {
       return res.status(400).json({ error: "Friend request not found" });
     }
 
-    // Add each other as friends using username
     receiver.friends.push(sender.username);
     sender.friends.push(receiver.username);
 
-    // Remove the friend request
     receiver.friendRequests.splice(requestIndex, 1);
 
     await receiver.save();
@@ -79,15 +80,15 @@ router.post("/accept", authenticateToken, async (req, res) => {
 
 // Decline Friend Request
 router.post("/decline", authenticateToken, async (req, res) => {
-  const { senderId, receiverId } = req.body; // these will be usernames
+  const receiverId = req.user.username;
+  const { senderId } = req.body;
 
   try {
     const receiver = await User.findOne({ username: receiverId });
     if (!receiver) return res.status(404).json({ error: "User not found" });
 
-    // Remove the friend request using username
     receiver.friendRequests = receiver.friendRequests.filter(
-      (req) => req.sender !== senderId
+      (r) => r.sender !== senderId
     );
     await receiver.save();
 
@@ -102,16 +103,17 @@ router.post("/decline", authenticateToken, async (req, res) => {
 router.get("/friends/:username", authenticateToken, async (req, res) => {
   const { username } = req.params;
 
+  if (req.user.username !== username) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
   try {
-    const user = await User.findOne({ username }).populate(
-      "friends",
-      "username profileImage"
-    );
+    const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ error: "User not found" });
 
     const friendsDetails = await User.find({
       username: { $in: user.friends },
-    });
+    }).select("username profileImage");
 
     res.status(200).json(friendsDetails);
   } catch (err) {
@@ -123,6 +125,10 @@ router.get("/friends/:username", authenticateToken, async (req, res) => {
 // Get Friend Requests
 router.get("/requests/:username", authenticateToken, async (req, res) => {
   const { username } = req.params;
+
+  if (req.user.username !== username) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
 
   try {
     const user = await User.findOne({ username });
@@ -151,17 +157,41 @@ router.get("/requests/:username", authenticateToken, async (req, res) => {
   }
 });
 
-// Remove Friend Request
+// Remove an existing friendship (unfriend)
+router.post("/remove-friend", authenticateToken, async (req, res) => {
+  const myUsername = req.user.username;
+  const { friendUsername } = req.body;
+
+  try {
+    const me = await User.findOne({ username: myUsername });
+    const friend = await User.findOne({ username: friendUsername });
+
+    if (!me || !friend) return res.status(404).json({ error: "User not found" });
+
+    me.friends = me.friends.filter((f) => f !== friendUsername);
+    friend.friends = friend.friends.filter((f) => f !== myUsername);
+
+    await me.save();
+    await friend.save();
+
+    res.status(200).json({ message: "Friend removed" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+// Remove Friend Request (sender cancels their own outbound request)
 router.post("/remove-request", authenticateToken, async (req, res) => {
-  const { senderId, receiverId } = req.body; // these will be usernames
+  const senderId = req.user.username;
+  const { receiverId } = req.body;
 
   try {
     const receiver = await User.findOne({ username: receiverId });
     if (!receiver) return res.status(404).json({ error: "User not found" });
 
-    // Remove the friend request using username
     receiver.friendRequests = receiver.friendRequests.filter(
-      (req) => req.sender !== senderId
+      (r) => r.sender !== senderId
     );
     await receiver.save();
 

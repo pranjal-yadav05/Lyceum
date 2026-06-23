@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
-import { GoogleLogin } from "@react-oauth/google";
+import GoogleSignInButton from "./GoogleSignInButton";
+import { useAuth } from "../contexts/AuthContext";
+import { API_URL } from "../config/env";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -16,49 +18,61 @@ import { Label } from "./ui/label";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 
-const API_URL = process.env.REACT_APP_API_URL;
-
-function LoginPage({ setAuth, onLoginSuccess }) {
+function LoginPage({ onLoginSuccess }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordRequired, setIsPasswordRequired] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated, refreshAuth } = useAuth();
 
-  const handleGoogleLoginSuccess = async (response) => {
-    setIsLoading(true);
-    try {
-      const token = response.credential;
-      const res = await axios.post(`${API_URL}/auth/google`, { token });
-      localStorage.setItem("token", res.data.token);
-      onLoginSuccess(res.data.token);
-      setAuth(true);
-      navigate("/dashboard");
-    } catch (err) {
-      setError("Google login failed");
-    } finally {
-      setIsLoading(false);
+  const onSuccess = onLoginSuccess ?? refreshAuth;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
     }
-  };
+  }, [isAuthenticated, navigate]);
 
-  const handleGoogleLoginError = () => {
-    setError("Google login failed");
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errKey = params.get("error");
+    if (!errKey) return;
+    const messages = {
+      csrf: "Google sign-in failed a security check. Please try again.",
+      no_credential: "Google did not return a credential. Please try again.",
+      google_failed: "Google sign-in failed. Please try again.",
+    };
+    setError(messages[errKey] ?? "Google sign-in failed. Please try again.");
+  }, [location.search]);
+
+  const handleIdentifierChange = (e) => {
+    setIdentifier(e.target.value);
+    if (isPasswordRequired) {
+      setIsPasswordRequired(false);
+      setPassword("");
+      setError("");
+    }
   };
 
   const handleLogin = useCallback(
     async (e) => {
       e.preventDefault();
+      setError("");
       setIsLoading(true);
       try {
         if (isPasswordRequired) {
-          const response = await axios.post(`${API_URL}/auth/login`, {
-            identifier,
-            password,
-          });
-          onLoginSuccess(response.data.token);
-          setAuth(true);
-          navigate("/dashboard");
+          await axios.post(`${API_URL}/auth/login`, { identifier, password });
+          const session = await onSuccess();
+          if (!session?.user) {
+            setError(
+              "Login succeeded but your session could not be started. Please try again."
+            );
+            return;
+          }
+          navigate("/dashboard", { replace: true });
         } else {
           const checkResponse = await axios.post(`${API_URL}/auth/check-user`, {
             identifier,
@@ -69,13 +83,11 @@ function LoginPage({ setAuth, onLoginSuccess }) {
               setIsPasswordRequired(true);
             } else if (checkResponse.data.authMethod === "google") {
               setError(
-                `Welcome back, ${identifier}! Please sign in using Google to continue.`
+                `Welcome back! This account uses Google Sign-In. Please use the button below to continue.`
               );
-              // Show Google Sign-In button
-              setIsPasswordRequired(false);
             }
           } else {
-            navigate("/register");
+            navigate("/register", { state: { identifier } });
           }
         }
       } catch (err) {
@@ -84,28 +96,8 @@ function LoginPage({ setAuth, onLoginSuccess }) {
         setIsLoading(false);
       }
     },
-    [
-      identifier,
-      password,
-      isPasswordRequired,
-      onLoginSuccess,
-      setAuth,
-      navigate,
-    ]
+    [identifier, password, isPasswordRequired, onSuccess, navigate]
   );
-
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
-
-    if (token) {
-      localStorage.removeItem("token");
-      localStorage.setItem("token", token);
-      onLoginSuccess(token);
-      setAuth(true);
-      navigate("/dashboard");
-    }
-  }, [setAuth, navigate, onLoginSuccess]);
 
   const logoPath = "/images/lyceum-logo.png";
 
@@ -134,7 +126,9 @@ function LoginPage({ setAuth, onLoginSuccess }) {
               Welcome Back
             </CardTitle>
             <CardDescription className="text-center text-gray-300 text-sm">
-              Sign in to continue to Lyceum
+              {isPasswordRequired
+                ? `Signing in as ${identifier}`
+                : "Sign in to continue to Lyceum"}
             </CardDescription>
           </CardHeader>
 
@@ -151,11 +145,12 @@ function LoginPage({ setAuth, onLoginSuccess }) {
                     id="identifier"
                     type="text"
                     value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    onChange={handleIdentifierChange}
                     placeholder="Enter your Email or Username"
                     className="bg-[#2a2435] border border-gray-600 text-white focus:border-purple-500 focus:ring-purple-500"
                     autoComplete="username"
                     required
+                    readOnly={isPasswordRequired}
                   />
                 </div>
 
@@ -173,6 +168,7 @@ function LoginPage({ setAuth, onLoginSuccess }) {
                       className="bg-[#2a2435] border border-gray-600 text-white focus:border-purple-500 focus:ring-purple-500"
                       autoComplete="current-password"
                       required
+                      autoFocus
                     />
                   </div>
                 )}
@@ -181,9 +177,30 @@ function LoginPage({ setAuth, onLoginSuccess }) {
               <Button
                 type="submit"
                 className="w-full mt-4 bg-purple-600 hover:bg-purple-700 transition-colors"
+                disabled={isLoading}
               >
-                {isLoading ? <LoadingSpinner /> : "Continue"}
+                {isLoading ? (
+                  <LoadingSpinner />
+                ) : isPasswordRequired ? (
+                  "Sign in"
+                ) : (
+                  "Continue"
+                )}
               </Button>
+
+              {isPasswordRequired && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPasswordRequired(false);
+                    setPassword("");
+                    setError("");
+                  }}
+                  className="w-full text-sm text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  Use a different account
+                </button>
+              )}
             </form>
           </CardContent>
 
@@ -198,21 +215,13 @@ function LoginPage({ setAuth, onLoginSuccess }) {
               </Link>
             </p>
 
-            {/* OR Separator */}
             <div className="relative w-full max-w-sm flex items-center">
               <div className="flex-grow border-t border-gray-600"></div>
               <span className="px-2 text-gray-500 text-sm">OR</span>
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleLogin
-              clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}
-              onSuccess={handleGoogleLoginSuccess}
-              onError={handleGoogleLoginError}
-              theme="filled_black"
-              size="large"
-              className="w-full max-w-sm"
-            />
+            <GoogleSignInButton theme="filled_black" size="large" />
           </CardFooter>
         </Card>
       </div>

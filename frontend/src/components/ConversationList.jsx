@@ -11,12 +11,14 @@ import { Search, X, Loader2 } from "lucide-react";
 import { ScrollArea } from "./ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import NotificationPopup from "./ui/NotificationPopup";
+import { useAuth } from "../contexts/AuthContext";
 
 const ConversationList = ({
   onSelectConversation,
   selectedConversationId,
   onConversationCreated,
   onReceiverInfoFetched,
+  socketReady = false,
 }) => {
   const [conversations, setConversations] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,6 +28,8 @@ const ConversationList = ({
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null); // State for NotificationPopup
   const inputRef = useRef(null);
+  const { user } = useAuth();
+  const currentUserId = user?.id;
 
   // Debounce search
   const searchTimeout = useRef(null);
@@ -47,7 +51,12 @@ const ConversationList = ({
 
     fetchConversations();
 
-    const unsubscribe = subscribeToNewConversations((newConversation) => {
+    if (!socketReady) {
+      return;
+    }
+
+    let unsubscribe = () => {};
+    subscribeToNewConversations((newConversation) => {
       setConversations((prevConversations) => {
         const exists = prevConversations.some(
           (conv) =>
@@ -55,19 +64,21 @@ const ConversationList = ({
             conv.participants?.some((p) => p._id === newConversation._id)
         );
         if (!exists) {
-          setNotification({ message: "New chat created.", type: "success" }); // Show notification
+          setNotification({ message: "New chat created.", type: "success" });
           return [newConversation, ...prevConversations];
         }
         return prevConversations;
       });
-    });
+    })
+      .then((unsub) => {
+        unsubscribe = unsub;
+      })
+      .catch(() => {});
 
     return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
+      unsubscribe();
     };
-  }, []);
+  }, [socketReady]);
 
   const handleSearch = async (query) => {
     if (!query.trim()) {
@@ -78,7 +89,6 @@ const ConversationList = ({
     try {
       setSearching(true);
       const results = await searchUsers(query);
-      const currentUserId = localStorage.getItem("userId");
       const filteredResults = results.filter(
         (user) => user._id !== currentUserId
       );
@@ -114,7 +124,19 @@ const ConversationList = ({
           conv.participants?.some((p) => p._id === userId)
       );
 
-      if (!existingConversation) {
+      if (existingConversation) {
+        const otherUser = existingConversation.participants?.find(
+          (p) => p && p._id !== currentUserId
+        );
+        if (otherUser && onReceiverInfoFetched) {
+          onReceiverInfoFetched({
+            username: otherUser.username,
+            isOnline: existingConversation.isOnline ?? false,
+            lastSeen: null,
+            profileImage: otherUser.profileImage || "",
+          });
+        }
+      } else {
         // Find user details from searchResults
         const userDetails = searchResults.find((user) => user._id === userId);
 
@@ -176,7 +198,6 @@ const ConversationList = ({
     }
 
     const isSelected = selectedConversationId === item._id;
-    const currentUserId = localStorage.getItem("userId");
 
     if (searchResults.includes(item)) {
       return (

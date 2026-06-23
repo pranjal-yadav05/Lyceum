@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
+import ConfirmDialog from "./ConfirmDialog";
+import { toast } from "react-hot-toast";
 import { Button } from "./ui/button";
 import { Menu } from "lucide-react";
 import LeftSidebar from "./LeftSidebar";
@@ -13,6 +16,7 @@ import LoadingSpinner from "./LoadingSpinner";
 const API_URL = process.env.REACT_APP_API_URL;
 
 export default function ForumPosts({ username }) {
+  const location = useLocation();
   const [topics, setTopics] = useState([]);
   const [selectedTopic, setSelectedTopic] = useState(() => {
     const saved = localStorage.getItem("selectedTopic");
@@ -25,12 +29,70 @@ export default function ForumPosts({ username }) {
   });
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(true);
+  const [deleteTopicId, setDeleteTopicId] = useState(null);
   const buttonRef = useRef(null);
   const sidebarRef = useRef(null);
 
+  const fetchTopics = useCallback(async () => {
+    setIsLoadingTopics(true);
+    try {
+      const response = await axios.get(`${API_URL}/topics`, {
+        withCredentials: true,
+      });
+      const fetchedTopics = response.data || [];
+
+      setSelectedTopic((current) => {
+        if (!current) return current;
+        const selectedId = typeof current === "object" ? current._id : current;
+        const stillExists = fetchedTopics.some((t) => t._id === selectedId);
+        if (!stillExists) {
+          localStorage.removeItem("selectedTopic");
+          toast.error("That topic no longer exists");
+          return null;
+        }
+        return current;
+      });
+
+      const uniqueAuthors = [
+        ...new Set(fetchedTopics.map((t) => t.author).filter(Boolean)),
+      ];
+      const authorImageEntries = await Promise.all(
+        uniqueAuthors.map(async (author) => {
+          try {
+            const res = await axios.get(`${API_URL}/user/profile/${author}`);
+            return [author, res.data.coverImage || null];
+          } catch (err) {
+            console.error(`Error fetching cover image for ${author}:`, err);
+            return [author, null];
+          }
+        })
+      );
+      const authorImageMap = Object.fromEntries(authorImageEntries);
+
+      setTopics(
+        fetchedTopics.map((topic) => ({
+          ...topic,
+          authorCoverImage: authorImageMap[topic.author] || null,
+        }))
+      );
+    } catch (error) {
+      console.error("Error fetching topics:", error);
+      setTopics([]);
+    } finally {
+      setIsLoadingTopics(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTopics();
-  }, []);
+  }, [fetchTopics]);
+
+  useEffect(() => {
+    const topicId = location.state?.selectTopicId;
+    if (!topicId) return;
+    setSelectedTopic(topicId);
+    window.history.replaceState({}, document.title);
+  }, [location.state]);
 
   useEffect(() => {
     localStorage.setItem("selectedTopic", JSON.stringify(selectedTopic));
@@ -59,28 +121,16 @@ export default function ForumPosts({ username }) {
     };
   }, [isSidebarOpen]);
 
-  const fetchTopics = async () => {
-    setIsLoadingTopics(true);
-    try {
-      const response = await axios.get(`${API_URL}/topics`, {
-        withCredentials: true,
-      });
-      setTopics(response.data);
-    } catch (error) {
-      console.error("Error fetching topics:", error);
-    } finally {
-      setIsLoadingTopics(false);
-    }
-  };
-
   const handleCreateTopic = async (newTopic) => {
     try {
       await axios.post(`${API_URL}/topics`, newTopic, {
         withCredentials: true,
       });
+      toast.success("Topic created");
       fetchTopics();
     } catch (error) {
       console.error("Error creating topic:", error);
+      toast.error("Failed to create topic");
     }
   };
 
@@ -90,19 +140,16 @@ export default function ForumPosts({ username }) {
   };
 
   const handleDeleteTopic = async (topicId) => {
-    const token = localStorage.getItem("token");
     try {
-      await axios.delete(`${API_URL}/topics/${topicId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await axios.delete(`${API_URL}/topics/${topicId}`);
+      toast.success("Topic deleted");
       fetchTopics();
       if (selectedTopic === topicId) {
         setSelectedTopic(null);
       }
     } catch (error) {
       console.error("Error deleting topic:", error);
+      toast.error("Failed to delete topic");
     }
   };
 
@@ -165,7 +212,7 @@ export default function ForumPosts({ username }) {
               selectedCategory={selectedCategory}
               setSelectedCategory={setSelectedCategory}
               handleTopicSelect={handleTopicSelect}
-              handleDeleteTopic={handleDeleteTopic}
+              handleDeleteTopic={(id) => setDeleteTopicId(id)}
               username={username}
               selectedTopic={selectedTopic}
               handleCreateTopic={handleCreateTopic}
@@ -210,6 +257,16 @@ export default function ForumPosts({ username }) {
       >
         <Menu className="h-4 w-4" />
       </Button>
+
+      <ConfirmDialog
+        open={!!deleteTopicId}
+        onOpenChange={(open) => !open && setDeleteTopicId(null)}
+        title="Delete topic?"
+        description="All posts in this topic will also be removed."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => handleDeleteTopic(deleteTopicId)}
+      />
     </div>
   );
 }

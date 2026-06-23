@@ -3,18 +3,12 @@ import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import passport from "passport";
-import session from "express-session";
 import postRoutes from "./routes/posts.js";
 import authRoutes from "./routes/auth.js";
 import topicRoutes from "./routes/topics.js";
 import statsRoutes from "./routes/stats.js";
 import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js";
-// import studySessionRoutes from './routes/StudySession.js';
-import path from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import chatRoutes from "./routes/messages.js";
 import friendRoutes from "./routes/friends.js";
 import blobManagementRoutes from "./routes/blobManagement.js";
@@ -23,14 +17,52 @@ import adminFeedbackRoutes from "./routes/adminFeedback.js";
 import analyticsRoutes from "./routes/analytics.js";
 import { analyticsMiddleware } from "./middleware/analyticsMiddleware.js";
 import studySessionsRoute from "./routes/studySessions.js";
+import meRoute from "./routes/me.js";
+import focusSpacesRoutes from "./routes/focusSpaces.js";
+import adminFocusSpacesRoutes from "./routes/adminFocusSpaces.js";
+import focusSoundsRoutes from "./routes/focusSounds.js";
+import adminFocusSoundsRoutes from "./routes/adminFocusSounds.js";
+import searchRoutes from "./routes/search.js";
+import { validateEnv } from "./utils/validateEnv.js";
+import { connectDB } from "./utils/db.js";
+import {
+  notFoundHandler,
+  errorHandler,
+} from "./middleware/errorHandler.js";
 
 dotenv.config();
+validateEnv();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin(origin, callback) {
+      // No Origin header — same-origin or server-side proxy
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Local dev: allow any localhost / 127.0.0.1 port (CRA proxy, direct API, etc.)
+      if (
+        process.env.NODE_ENV !== "production" &&
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      const allowed = new Set(
+        [process.env.FRONTEND_URL].filter(Boolean)
+      );
+      if (allowed.has(origin)) {
+        return callback(null, true);
+      }
+
+      // Reject without throwing — throwing becomes a 500 Internal Server Error
+      callback(null, false);
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     exposedHeaders: ["Content-Range", "X-Content-Range"],
@@ -41,7 +73,6 @@ app.use(
   })
 );
 
-// Add security headers
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -50,44 +81,29 @@ app.use((req, res, next) => {
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains"
   );
-  res.setHeader("Content-Security-Policy", "default-src 'self'");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   next();
 });
 
-// Middleware setup
-const middlewares = [
-  cookieParser(),
-  express.json(),
-  session({
-    secret: process.env.SESSION_SECRET || "secret",
-    resave: false,
-    saveUninitialized: true,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    },
-  }),
-  passport.initialize(),
-  passport.session(),
-];
+app.use(cookieParser());
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
-middlewares.forEach((middleware) => app.use(middleware));
+mongoose.set("strictQuery", true);
 
-mongoose.set("strictQuery", true); // Set strictQuery option
-
-// MongoDB connection
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => {
+// Ensure DB is connected before handling requests (serverless-safe)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
     console.error("MongoDB connection error:", err);
-    process.exit(1);
-  });
+    res.status(503).json({ error: "Service temporarily unavailable" });
+  }
+});
 
-// Add analytics middleware
 app.use(analyticsMiddleware);
 
-// Routes
 app.use("/api/posts", postRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", topicRoutes);
@@ -101,14 +117,29 @@ app.use("/api/admin/feedback", adminFeedbackRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/studySessions", studySessionsRoute);
+app.use("/api/me", meRoute);
+app.use("/api/focus-spaces", focusSpacesRoutes);
+app.use("/api/admin/focus-spaces", adminFocusSpacesRoutes);
+app.use("/api/focus-sounds", focusSoundsRoutes);
+app.use("/api/admin/focus-sounds", adminFocusSoundsRoutes);
+app.use("/api/search", searchRoutes);
 
-app.get("/", (req, res) => res.send("Welcome to the API server..."));
+app.get("/", (req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
-// For Vercel serverless deployment
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 export default app;
 
-// For local development
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`API Server running on port ${PORT}`));
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => console.log(`API Server running on port ${PORT}`));
+    })
+    .catch((err) => {
+      console.error("Failed to connect to MongoDB:", err);
+      process.exit(1);
+    });
 }

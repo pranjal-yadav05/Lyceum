@@ -3,15 +3,16 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "./ui/button";
 import {
   LayoutGrid,
-  Globe,
   User,
   LogOut,
   Search,
+  LampDesk,
   Home,
   MessageSquare,
   MessageCircle,
 } from "lucide-react";
 import FeedbackModal from "./FeedbackModal";
+import { useAuth } from "../contexts/AuthContext";
 
 import {
   Tooltip,
@@ -25,15 +26,15 @@ const LeftSidebar = forwardRef(
     const navigate = useNavigate();
     const location = useLocation();
     const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+    const { user, logout } = useAuth();
 
-    const handleLogout = () => {
-      localStorage.removeItem("token");
+    const handleLogout = async () => {
+      await logout();
       navigate("/login");
     };
 
     const handleProfileNavigation = () => {
-      const username = localStorage.getItem("username");
-      navigate(`/profile/${username}`);
+      if (user?.username) navigate(`/profile/${user.username}`);
     };
 
     const handleNavigation = (path) => {
@@ -46,9 +47,10 @@ const LeftSidebar = forwardRef(
 
     const navItems = [
       { icon: Home, title: "Dashboard", path: "/dashboard" },
+      { icon: LampDesk, title: "Focus Spaces", path: "/solo-study" },
       { icon: LayoutGrid, title: "Forums", path: "/forum" },
       { icon: MessageSquare, title: "Direct Messages", path: "/chat" },
-      { icon: Search, title: "Search Users", onClick: openSearchDrawer },
+      { icon: Search, title: "Search", onClick: openSearchDrawer || (() => navigate("/chat")) },
     ];
 
     const isActive = (path) => {

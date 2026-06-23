@@ -22,18 +22,17 @@ import {
 } from "@mui/material";
 import {
   Users,
-  Video,
-  Search,
-  Settings,
-  Shield,
   Activity,
   AlertTriangle,
   MessageCircle,
+  LampDesk,
 } from "lucide-react";
 import axios from "axios";
 import LoadingSpinner from "../components/LoadingSpinner";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSettings, setActiveSettings] = useState({
@@ -45,7 +44,7 @@ const AdminDashboard = () => {
     sessionTimeout: 30,
   });
   const [analyticsData, setAnalyticsData] = useState({
-    activeUsers: [],
+    activeUserCount: 0,
     errorMetrics: [],
   });
 
@@ -54,37 +53,11 @@ const AdminDashboard = () => {
       setLoading(true);
       const endDate = new Date();
       const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 1);
 
-      // Set start date based on time range
-      switch ("24h") {
-        case "1h":
-          startDate.setHours(startDate.getHours() - 1);
-          break;
-        case "24h":
-          startDate.setDate(startDate.getDate() - 1);
-          break;
-        default:
-          break;
-      }
-
-      // Fetch active users and error metrics
-      const [activeUsersResponse, errorMetricsResponse] = await Promise.all([
-        axios.get(
-          `${process.env.REACT_APP_API_URL}/admin/metrics/active-users`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-            params: {
-              startDate: startDate.toISOString(),
-              endDate: endDate.toISOString(),
-            },
-          }
-        ),
+      const [dashboardRes, errorMetricsResponse] = await Promise.all([
+        axios.get(`${process.env.REACT_APP_API_URL}/admin/dashboard`),
         axios.get(`${process.env.REACT_APP_API_URL}/admin/metrics/errors`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
           params: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
@@ -92,16 +65,18 @@ const AdminDashboard = () => {
         }),
       ]);
 
-      // Format active users data for the chart
-      const activeUsersData = activeUsersResponse.data.map((user) => ({
-        time: new Date(user.timestamp).toLocaleTimeString(),
-        count: 1,
-      }));
+      if (dashboardRes.data.settings) {
+        setActiveSettings((prev) => ({
+          ...prev,
+          ...dashboardRes.data.settings,
+        }));
+      }
 
       setAnalyticsData({
-        activeUsers: activeUsersData,
+        activeUserCount: dashboardRes.data.activeUsers ?? 0,
         errorMetrics: errorMetricsResponse.data,
       });
+      setError(null);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching dashboard data:", err);
@@ -112,24 +87,16 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 15 * 60 * 1000); // Refresh every 15 minutes
+    const interval = setInterval(fetchDashboardData, 15 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   const handleSettingChange = async (setting, value) => {
     try {
-      await axios.post(
-        `${process.env.REACT_APP_API_URL}/admin/settings`,
-        {
-          setting,
-          value,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
+      await axios.post(`${process.env.REACT_APP_API_URL}/admin/settings`, {
+        setting,
+        value,
+      });
       setActiveSettings((prev) => ({ ...prev, [setting]: value }));
     } catch (err) {
       setError(`Failed to update ${setting} setting`);
@@ -138,12 +105,7 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
         <LoadingSpinner />
       </Box>
     );
@@ -159,81 +121,54 @@ const AdminDashboard = () => {
 
   const quickActions = [
     { icon: Users, label: "Manage Users", path: "/admin/users" },
-    { icon: Video, label: "Study Room Settings", path: "/admin/studyroom" },
-    { icon: Search, label: "Search Configuration", path: "/admin/search" },
-    { icon: Settings, label: "System Settings", path: "/admin/settings" },
-    { icon: Shield, label: "Security Settings", path: "/admin/security" },
     { icon: MessageCircle, label: "View Feedback", path: "/admin/feedback" },
+    { icon: LampDesk, label: "Focus Spaces", path: "/admin/focus-spaces" },
   ];
+
+  const cardSx = {
+    p: 2,
+    height: "100%",
+    width: "100%",
+    bgcolor: "#1a1425",
+    border: "1px solid #9333ea",
+    borderRadius: "12px",
+  };
+
+  const headingSx = {
+    color: "white",
+    mb: 1,
+    textAlign: "center",
+    fontWeight: "bold",
+    textShadow: "0px 0px 10px rgba(147, 51, 234, 0.8)",
+  };
 
   return (
     <Container maxWidth="lg" sx={{ mt: 2, mb: 2 }}>
-      {" "}
-      {/* Reduced top and bottom margins */}
-      <Grid container spacing={2} justifyContent="center" alignItems="center">
-        {" "}
-        {/* Reduced grid spacing */}
+      <Grid container spacing={2}>
         {/* Quick Actions */}
-        <Grid item xs={12}>
-          <Paper
-            sx={{
-              p: 2 /* Reduced padding */,
-              bgcolor: "#1a1425",
-              border: "1px solid #9333ea",
-              borderRadius: "12px",
-            }}
-          >
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{
-                color: "white",
-                mb: 1 /* Reduced bottom margin */,
-                textAlign: "center",
-                fontWeight: "bold",
-                textShadow: "0px 0px 10px rgba(147, 51, 234, 0.8)",
-              }}
-            >
+        <Grid size={12}>
+          <Paper sx={cardSx}>
+            <Typography variant="h5" gutterBottom sx={headingSx}>
               Quick Actions
             </Typography>
-            <Grid
-              container
-              spacing={2} /* Reduced grid spacing */
-              justifyContent="center"
-              alignItems="center"
-              sx={{ textAlign: "center" }}
-            >
+            <Grid container spacing={2}>
               {quickActions.map((action) => (
-                <Grid
-                  key={action.label}
-                  sx={{
-                    gridColumn: {
-                      xs: "span 12",
-                      sm: "span 6",
-                      md: "span 4",
-                      lg: "span 3",
-                    },
-                  }}
-                  display="flex"
-                  justifyContent="center"
-                >
+                <Grid key={action.label} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                   <Button
                     variant="outlined"
                     startIcon={<action.icon color="white" />}
-                    onClick={() => (window.location.href = action.path)}
+                    onClick={() => navigate(action.path)}
                     fullWidth
                     sx={{
-                      height: "48px" /* Reduced button height */,
+                      height: "48px",
                       color: "white",
                       borderColor: "rgba(255, 255, 255, 0.2)",
                       backdropFilter: "blur(10px)",
                       WebkitBackdropFilter: "blur(10px)",
                       backgroundColor: "rgba(255, 255, 255, 0.1)",
-                      display: "flex",
                       justifyContent: "flex-start",
-                      alignItems: "center",
                       textTransform: "none",
-                      fontSize: "0.9rem" /* Slightly reduced font size */,
+                      fontSize: "0.9rem",
                       fontWeight: "bold",
                       borderRadius: "12px",
                       "&:hover": {
@@ -249,107 +184,65 @@ const AdminDashboard = () => {
             </Grid>
           </Paper>
         </Grid>
+
         {/* System Status */}
-        <Grid container spacing={2} justifyContent="center" alignItems="center">
-          <Grid
-            sx={{ gridColumn: { xs: "span 12", sm: "span 6" } }}
-            display="flex"
-            justifyContent="center"
-          >
-            <Paper
-              sx={{
-                p: 2 /* Reduced padding */,
-                height: "100%",
-                bgcolor: "#1a1425",
-                border: "1px solid #9333ea",
-                borderRadius: "12px",
-              }}
-            >
-              <Typography
-                variant="h5"
-                gutterBottom
-                sx={{
-                  color: "white",
-                  mb: 1 /* Reduced bottom margin */,
-                  textAlign: "center",
-                  fontWeight: "bold",
-                  textShadow: "0px 0px 10px rgba(147, 51, 234, 0.8)",
-                }}
-              >
-                System Status
-              </Typography>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <Activity color="white" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="System Health"
-                    primaryTypographyProps={{ color: "white" }}
-                    secondary={
-                      <Typography
-                        component="span"
-                        sx={{ display: "inline-flex", alignItems: "center" }}
-                      >
-                        <Chip
-                          label={
-                            analyticsData.errorMetrics.length > 0
-                              ? "Warning"
-                              : "Healthy"
-                          }
-                          color={
-                            analyticsData.errorMetrics.length > 0
-                              ? "warning"
-                              : "success"
-                          }
-                          size="small"
-                        />
-                      </Typography>
-                    }
-                  />
-                </ListItem>
-                <Divider sx={{ bgcolor: "rgba(255, 255, 255, 0.1)", my: 1 }} />
-                <ListItem>
-                  <ListItemIcon>
-                    <Users color="white" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Active Users"
-                    primaryTypographyProps={{ color: "white" }}
-                    secondary={`${
-                      analyticsData.activeUsers.length || 0
-                    } users online`}
-                    secondaryTypographyProps={{
-                      color: "rgba(255, 255, 255, 0.7)",
-                    }}
-                  />
-                </ListItem>
-              </List>
-            </Paper>
-          </Grid>
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Paper sx={cardSx}>
+            <Typography variant="h5" gutterBottom sx={headingSx}>
+              System Status
+            </Typography>
+            <List>
+              <ListItem>
+                <ListItemIcon>
+                  <Activity color="white" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="System Health"
+                  slotProps={{ primary: { color: "white" } }}
+                  secondary={
+                    <Typography
+                      component="span"
+                      sx={{ display: "inline-flex", alignItems: "center" }}
+                    >
+                      <Chip
+                        label={
+                          analyticsData.errorMetrics.length > 0
+                            ? "Warning"
+                            : "Healthy"
+                        }
+                        color={
+                          analyticsData.errorMetrics.length > 0
+                            ? "warning"
+                            : "success"
+                        }
+                        size="small"
+                      />
+                    </Typography>
+                  }
+                />
+              </ListItem>
+              <Divider sx={{ bgcolor: "rgba(255, 255, 255, 0.1)", my: 1 }} />
+              <ListItem>
+                <ListItemIcon>
+                  <Users color="white" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Active Users"
+                  secondary={`${analyticsData.activeUserCount} active this week`}
+                  slotProps={{
+                    primary: { color: "white" },
+                    secondary: { color: "rgba(255, 255, 255, 0.7)" },
+                  }}
+                />
+              </ListItem>
+            </List>
+          </Paper>
         </Grid>
+
         {/* Active Settings */}
-        <Grid item xs={12} sm={6} display="flex" justifyContent="center">
-          <Paper
-            sx={{
-              p: 2 /* Reduced padding */,
-              height: "100%",
-              bgcolor: "#1a1425",
-              border: "1px solid #9333ea",
-              borderRadius: "12px",
-            }}
-          >
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{
-                color: "white",
-                mb: 1 /* Reduced bottom margin */,
-                textAlign: "center",
-                fontWeight: "bold",
-                textShadow: "0px 0px 10px rgba(147, 51, 234, 0.8)",
-              }}
-            >
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <Paper sx={cardSx}>
+            <Typography variant="h5" gutterBottom sx={headingSx}>
               Active Settings
             </Typography>
             <List>
@@ -375,10 +268,7 @@ const AdminDashboard = () => {
                     <Switch
                       checked={activeSettings.userRegistration}
                       onChange={(e) =>
-                        handleSettingChange(
-                          "userRegistration",
-                          e.target.checked
-                        )
+                        handleSettingChange("userRegistration", e.target.checked)
                       }
                       color="primary"
                     />
@@ -394,10 +284,7 @@ const AdminDashboard = () => {
                     <Switch
                       checked={activeSettings.studyRoomEnabled}
                       onChange={(e) =>
-                        handleSettingChange(
-                          "studyRoomEnabled",
-                          e.target.checked
-                        )
+                        handleSettingChange("studyRoomEnabled", e.target.checked)
                       }
                       color="primary"
                     />
@@ -415,10 +302,7 @@ const AdminDashboard = () => {
                   <Select
                     value={activeSettings.maxVideoParticipants}
                     onChange={(e) =>
-                      handleSettingChange(
-                        "maxVideoParticipants",
-                        e.target.value
-                      )
+                      handleSettingChange("maxVideoParticipants", e.target.value)
                     }
                     label="Max Video Participants"
                     sx={{ color: "white" }}
@@ -434,27 +318,11 @@ const AdminDashboard = () => {
             </List>
           </Paper>
         </Grid>
+
         {/* Error Metrics */}
-        <Grid item xs={12} display="flex" justifyContent="center">
-          <Paper
-            sx={{
-              p: 2 /* Reduced padding */,
-              bgcolor: "#1a1425",
-              border: "1px solid #9333ea",
-              borderRadius: "12px",
-            }}
-          >
-            <Typography
-              variant="h5"
-              gutterBottom
-              sx={{
-                color: "white",
-                mb: 1 /* Reduced bottom margin */,
-                textAlign: "center",
-                fontWeight: "bold",
-                textShadow: "0px 0px 10px rgba(147, 51, 234, 0.8)",
-              }}
-            >
+        <Grid size={12}>
+          <Paper sx={cardSx}>
+            <Typography variant="h5" gutterBottom sx={headingSx}>
               Error Metrics
             </Typography>
             <List>
@@ -467,10 +335,10 @@ const AdminDashboard = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary={error._id}
-                        primaryTypographyProps={{ color: "white" }}
                         secondary={`${error.count} occurrences`}
-                        secondaryTypographyProps={{
-                          color: "rgba(255, 255, 255, 0.7)",
+                        slotProps={{
+                          primary: { color: "white" },
+                          secondary: { color: "rgba(255, 255, 255, 0.7)" },
                         }}
                       />
                     </ListItem>
@@ -485,7 +353,7 @@ const AdminDashboard = () => {
                 <ListItem>
                   <ListItemText
                     primary="No errors reported"
-                    primaryTypographyProps={{ color: "white" }}
+                    slotProps={{ primary: { color: "white" } }}
                   />
                 </ListItem>
               )}

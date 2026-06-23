@@ -22,22 +22,12 @@ router.use(auditLogger);
 // Check admin access
 router.get("/check-access", async (req, res) => {
   try {
+    const cookieToken = req.cookies?.token;
     const authHeader = req.headers.authorization;
-    // console.log(
-    //   "Received auth header:",
-    //   authHeader ? authHeader.substring(0, 20) + "..." : "none"
-    // );
+    const headerToken = authHeader ? authHeader.split(" ")[1] : null;
+    const token = cookieToken || headerToken;
 
-    if (!authHeader) {
-      // console.log("No authorization header provided");
-      return res
-        .status(401)
-        .json({ isAdmin: false, error: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
     if (!token) {
-      // console.log("No token found in authorization header");
       return res
         .status(401)
         .json({ isAdmin: false, error: "No token provided" });
@@ -98,6 +88,10 @@ router.use(isAdmin);
 // Admin dashboard routes
 router.get("/dashboard", async (req, res) => {
   try {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+
     const [
       activeUsers,
       sessionMetrics,
@@ -108,18 +102,18 @@ router.get("/dashboard", async (req, res) => {
       churnRate,
       settings,
     ] = await Promise.all([
-      getActiveUsers(),
-      getSessionMetrics(),
-      getFeatureUsage(),
-      getStudyRoomMetrics(),
-      getErrorMetrics(),
-      getSearchMetrics(),
-      getChurnRate(),
+      getActiveUsers(startDate, endDate),
+      getSessionMetrics(startDate, endDate),
+      getFeatureUsage(startDate, endDate),
+      getStudyRoomMetrics(startDate, endDate),
+      getErrorMetrics(startDate, endDate),
+      getSearchMetrics(startDate, endDate),
+      getChurnRate(startDate, endDate),
       Settings.getSettings(),
     ]);
 
     res.json({
-      activeUsers,
+      activeUsers: activeUsers.length,
       sessionMetrics,
       featureUsage,
       studyRoomMetrics,

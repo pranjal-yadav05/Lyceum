@@ -46,10 +46,20 @@ const userSchema = new mongoose.Schema(
       },
     ],
     friends: [String],
+    interests: [String],
+    categories: [String],
     visitorCount: {
       type: Number,
       default: 0,
     },
+    /** Persistent focus-room session goals (survive across visits until deleted) */
+    focusSessionGoals: [
+      {
+        id: { type: String, required: true },
+        text: { type: String, required: true, maxlength: 500, trim: true },
+        done: { type: Boolean, default: false },
+      },
+    ],
     createdAt: {
       type: Date,
       default: Date.now,

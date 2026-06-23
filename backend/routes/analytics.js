@@ -67,16 +67,9 @@ router.get("/metrics", isAdmin, async (req, res) => {
 
     res.json({
       activeUsers: activeUsers.length,
-      sessionMetrics: sessionMetrics[0] || {
-        averageDuration: 0,
-        totalSessions: 0,
-      },
+      sessionMetrics,
       featureUsage,
-      studyRoomMetrics: studyRoomMetrics[0] || {
-        averageParticipants: 0,
-        averageDuration: 0,
-        totalSessions: 0,
-      },
+      studyRoomMetrics,
       errorMetrics,
       searchMetrics,
       churnRate,

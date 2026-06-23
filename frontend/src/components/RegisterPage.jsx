@@ -1,8 +1,10 @@
 import React, { useState } from "react";
-import { GoogleLogin } from "@react-oauth/google";
+import GoogleSignInButton from "./GoogleSignInButton";
 
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { API_URL } from "../config/env";
 import { Button } from "./ui/button";
 import {
   Card,
@@ -17,37 +19,21 @@ import { Label } from "./ui/label";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorAlert from "./ErrorAlert";
 
-const API_URL = process.env.REACT_APP_API_URL;
-
 function RegisterPage({ onLoginSuccess }) {
-  const [email, setEmail] = useState("");
+  const location = useLocation();
+  const prefilled = location.state?.identifier ?? "";
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(prefilled);
+
+  const [email, setEmail] = useState(isEmail ? prefilled : "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(isEmail ? "" : prefilled);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const { refreshAuth } = useAuth();
 
-  const handleGoogleLoginSuccess = async (response) => {
-    setIsLoading(true);
-    try {
-      const token = response.credential;
-      const res = await axios.post(`${API_URL}/auth/google`, { token });
-      localStorage.setItem("token", res.data.token);
-      if (onLoginSuccess) {
-        onLoginSuccess(res.data.token); // Update authentication state
-      }
-      navigate("/dashboard");
-    } catch (err) {
-      setError("Google login failed");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleLoginError = () => {
-    setError("Google login failed");
-  };
+  const onSuccess = onLoginSuccess ?? refreshAuth;
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -59,23 +45,20 @@ function RegisterPage({ onLoginSuccess }) {
       return;
     }
 
-    // Clear any existing token before registration
-    localStorage.removeItem("token");
-
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, {
+      await axios.post(`${API_URL}/auth/register`, {
         username,
         email,
         password,
       });
-      // Only store token after successful registration
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-        if (onLoginSuccess) {
-          onLoginSuccess(response.data.token); // Update authentication state
-        }
-        navigate("/dashboard");
+      const session = await onSuccess();
+      if (!session?.user) {
+        setError(
+          "Account created but session wasn't saved. Restart the frontend dev server."
+        );
+        return;
       }
+      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.error || "Registration failed");
     } finally {
@@ -211,14 +194,7 @@ function RegisterPage({ onLoginSuccess }) {
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleLogin
-              clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID}
-              onSuccess={handleGoogleLoginSuccess}
-              onError={handleGoogleLoginError}
-              theme="filled_black"
-              size="large"
-              className="w-full max-w-sm"
-            />
+            <GoogleSignInButton theme="filled_black" size="large" text="signup_with" />
           </CardFooter>
         </Card>
       </div>

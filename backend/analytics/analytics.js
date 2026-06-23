@@ -70,6 +70,10 @@ export const recordError = async (userId, sessionId, errorDetails) => {
   return recordAnalyticsEvent("ERROR", userId, sessionId, errorDetails);
 };
 
+export const recordStudySession = async (userId, sessionId, metadata) => {
+  return recordAnalyticsEvent("SESSION_DURATION", userId, sessionId, metadata);
+};
+
 export const getActiveUsers = async (startDate, endDate) => {
   try {
     const activeUsers = await AnalyticsEvent.distinct("userId", {

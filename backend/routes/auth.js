@@ -1,61 +1,27 @@
 import express from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { OAuth2Client } from "google-auth-library";
 import User from "../models/User.js";
 import { generateToken, blacklistToken } from "../utils/tokenManager.js";
 import { auditLogger } from "../middleware/auditLogger.js";
+import { authRateLimiter } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
-dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+router.use(authRateLimiter);
+
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Apply audit logging to all auth routes
-router.use(auditLogger);
+const SESSION_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const email = profile.emails[0].value;
-        let user = await User.findOne({ email });
-
-        if (user) {
-          if (!user.googleId) {
-            user.googleId = profile.id;
-            await user.save();
-          }
-          return done(null, user);
-        }
-
-        const username = await generateUniqueUsername(
-          email.split("@")[0].toLowerCase()
-        );
-        user = new User({
-          email,
-          name: profile.displayName,
-          googleId: profile.id,
-          username,
-        });
-        await user.save();
-        return done(null, user);
-      } catch (err) {
-        console.error("Error in Google Strategy:", err);
-        return done(err, null);
-      }
-    }
-  )
-);
+function setAuthCookie(res, token) {
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_COOKIE_MAX_AGE_MS,
+    path: "/",
+  });
+}
 
 async function generateUniqueUsername(baseUsername) {
   let username = baseUsername;
@@ -67,35 +33,33 @@ async function generateUniqueUsername(baseUsername) {
   return username;
 }
 
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
+// Apply audit logging to all auth routes
+router.use(auditLogger);
 
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { failureRedirect: "/" }),
-  (req, res) => {
-    const token = generateToken(req.user);
-    res.redirect(`${process.env.FRONTEND_URL}/login?token=${token}`);
-  }
-);
-
-router.post("/google", async (req, res) => {
+// Google Identity Services callback (ux_mode: redirect / response_mode: form_post).
+// Google POSTs the credential here as application/x-www-form-urlencoded, with a
+// double-submit g_csrf_token cookie + body field for CSRF protection.
+router.post("/google/callback", async (req, res) => {
+  const loginUrl = `${process.env.FRONTEND_URL}/login`;
   try {
-    const { token } = req.body;
+    const bodyCsrf = req.body?.g_csrf_token;
+    const cookieCsrf = req.cookies?.g_csrf_token;
+    if (!bodyCsrf || !cookieCsrf || bodyCsrf !== cookieCsrf) {
+      return res.redirect(`${loginUrl}?error=csrf`);
+    }
+
+    const credential = req.body?.credential;
+    if (!credential) {
+      return res.redirect(`${loginUrl}?error=no_credential`);
+    }
+
     const ticket = await client.verifyIdToken({
-      idToken: token,
+      idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-
     const payload = ticket.getPayload();
-    const email = payload.email;
-    let user = await User.findOne({ email });
 
+    let user = await User.findOne({ email: payload.email });
     if (user) {
       if (!user.googleId) {
         user.googleId = payload.sub;
@@ -103,10 +67,10 @@ router.post("/google", async (req, res) => {
       }
     } else {
       const username = await generateUniqueUsername(
-        email.split("@")[0].toLowerCase()
+        payload.email.split("@")[0].toLowerCase()
       );
       user = new User({
-        email,
+        email: payload.email,
         name: payload.name,
         googleId: payload.sub,
         username,
@@ -115,10 +79,11 @@ router.post("/google", async (req, res) => {
     }
 
     const jwtToken = generateToken(user);
-    res.json({ token: jwtToken });
+    setAuthCookie(res, jwtToken);
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   } catch (error) {
-    console.error("Google authentication error:", error);
-    res.status(401).json({ error: "Invalid Google token" });
+    console.error("Google callback error:", error);
+    res.redirect(`${loginUrl}?error=google_failed`);
   }
 });
 
@@ -141,31 +106,31 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Username already in use" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    if (!password || password.length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters" });
+    }
+
     const user = new User({
       username,
       email,
-      password: hashedPassword,
+      password,
     });
 
     await user.save();
 
     const token = generateToken(user);
-
-    // Clear session and cookies before sending response
-    if (req.session) {
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Error destroying session:", err);
-        }
-        res.clearCookie("connect.sid");
-        res
-          .status(201)
-          .json({ message: "User registered successfully", token });
-      });
-    } else {
-      res.status(201).json({ message: "User registered successfully", token });
-    }
+    setAuthCookie(res, token);
+    res.status(201).json({
+      message: "User registered successfully",
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
   } catch (err) {
     console.error("Registration error:", err);
     res.status(500).json({ error: "Internal Server Error" });
@@ -218,10 +183,9 @@ router.post("/login", async (req, res) => {
     }
 
     const token = generateToken(user);
-    req.session.user = user;
+    setAuthCookie(res, token);
 
     res.json({
-      token,
       user: {
         _id: user._id,
         email: user.email,
@@ -238,10 +202,12 @@ router.post("/login", async (req, res) => {
 // Logout route
 router.post("/logout", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token =
+      req.cookies?.token ?? req.headers.authorization?.split(" ")[1];
     if (token) {
       await blacklistToken(token);
     }
+    res.clearCookie("token", { path: "/" });
     res.json({ message: "Logged out successfully" });
   } catch (error) {
     console.error("Logout error:", error);

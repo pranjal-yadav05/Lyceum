@@ -5,20 +5,12 @@ import BlacklistedToken from "../models/BlacklistedToken.js";
 
 export const isAdmin = async (req, res, next) => {
   try {
+    const cookieToken = req.cookies?.token;
     const authHeader = req.headers.authorization;
-    // console.log(
-    //   "Admin middleware - Received auth header:",
-    //   authHeader ? authHeader.substring(0, 20) + "..." : "none"
-    // );
+    const headerToken = authHeader ? authHeader.split(" ")[1] : null;
+    const token = cookieToken || headerToken;
 
-    if (!authHeader) {
-      // console.log("Admin middleware - No authorization header provided");
-      return res.status(401).json({ error: "No token provided" });
-    }
-
-    const token = authHeader.split(" ")[1];
     if (!token) {
-      // console.log("Admin middleware - No token found in authorization header");
       return res.status(401).json({ error: "No token provided" });
     }
 

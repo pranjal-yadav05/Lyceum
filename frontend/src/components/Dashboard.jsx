@@ -3,12 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { MessageSquare, Users, Plus, LogIn, Video, Menu } from "lucide-react";
+import { MessageSquare, Video, Menu, LampDesk, LogIn, Plus } from "lucide-react";
 import LeftSidebar from "./LeftSidebar";
 import SearchDrawer from "./SearchDrawer";
 import AnimatedCounter from "./AnimatedCounter";
 import LoadingSpinner from "./LoadingSpinner";
-import UnderDevelopmentModal from "./UnderDevelopmentModal";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -16,7 +15,6 @@ const Dashboard = ({ username }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const [roomId, setRoomId] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const navigate = useNavigate();
@@ -63,8 +61,8 @@ const Dashboard = ({ username }) => {
     setIsSearchDrawerOpen(true);
   };
 
-  const handleExploreGroups = () => {
-    setIsModalOpen(true);
+  const handleOpenSoloStudy = () => {
+    navigate("/solo-study");
   };
 
   const closeSearchDrawer = () => {
@@ -146,10 +144,14 @@ const Dashboard = ({ username }) => {
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
                     <Video className="mr-2 h-5 w-5 flex-shrink-0" />
-                    <span className="truncate">Virtual Study Rooms</span>
+                    <span className="truncate">Group Study Rooms</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <p className="text-sm text-gray-400">
+                    Video chat with classmates in a shared room. For solo ambient
+                    focus, try Focus Spaces instead.
+                  </p>
                   <Input
                     placeholder="Enter room ID to join..."
                     value={roomId}
@@ -199,24 +201,24 @@ const Dashboard = ({ username }) => {
                 </CardContent>
               </Card>
 
-              {/* Study Groups Card */}
+              {/* Solo Focus Spaces */}
               <Card className="bg-[#1a1425] border-purple-600/20">
                 <CardHeader>
                   <CardTitle className="text-xl text-white flex items-center">
-                    <Users className="mr-2 h-5 w-5 flex-shrink-0" />
-                    <span className="truncate">Study Groups</span>
+                    <LampDesk className="mr-2 h-5 w-5 flex-shrink-0" />
+                    <span className="truncate">Solo Focus Spaces</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <p className="text-sm text-gray-400">
-                    Connect with fellow students, form study groups, and learn
-                    together.
+                    Curated ambient environments with a pomodoro timer and
+                    session goals. Study alone in your chosen virtual space.
                   </p>
                   <Button
-                    onClick={handleExploreGroups}
+                    onClick={handleOpenSoloStudy}
                     className="w-full bg-purple-600 hover:bg-purple-700"
                   >
-                    Explore Groups
+                    Browse Environments
                   </Button>
                 </CardContent>
               </Card>
@@ -297,10 +299,6 @@ const Dashboard = ({ username }) => {
         isOpen={isSearchDrawerOpen}
         onClose={closeSearchDrawer}
         API_URL={API_URL}
-      />
-      <UnderDevelopmentModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
       />
     </div>
   );

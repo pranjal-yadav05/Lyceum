@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 import LoadingSpinner from './LoadingSpinner';
+import { toast } from 'react-hot-toast';
 
 export default function CreatePostDialog({ isOpen, onOpenChange, onCreatePost, username }) {
   const [newPost, setNewPost] = useState({
@@ -25,7 +26,7 @@ export default function CreatePostDialog({ isOpen, onOpenChange, onCreatePost, u
 
   const handleCreatePost = async () => {
     if (!newPost.title || !newPost.content) {
-      alert('Please fill in all fields');
+      toast.error('Please fill in all fields');
       return;
     }
     setIsCreating(true);

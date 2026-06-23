@@ -37,6 +37,9 @@ router.post('/', authenticateToken, async (req, res) => {
 
 // Update a post
 router.patch('/:postId', getPost, authenticateToken, async (req, res) => {
+  if (res.post.author !== req.user.username) {
+    return res.status(403).json({ message: 'Not authorized to edit this post' });
+  }
   if (req.body.content != null) {
     res.post.content = req.body.content;
   }
@@ -50,8 +53,11 @@ router.patch('/:postId', getPost, authenticateToken, async (req, res) => {
 
 // Delete a post
 router.delete('/:postId', getPost, authenticateToken, async (req, res) => {
+  if (res.post.author !== req.user.username) {
+    return res.status(403).json({ message: 'Not authorized to delete this post' });
+  }
   try {
-    await res.post.remove();
+    await res.post.deleteOne();
     res.json({ message: 'Deleted Post' });
   } catch (error) {
     res.status(500).json({ message: error.message });

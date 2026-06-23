@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import LoadingSpinner from "./LoadingSpinner";
+import { toast } from "react-hot-toast";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,7 @@ export default function CreateTopicDialog({
 
   const handleCreateTopic = async () => {
     if (!newTopic.title || !newTopic.description || !newTopic.category) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
     setIsCreating(true);

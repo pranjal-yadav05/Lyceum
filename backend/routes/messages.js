@@ -82,10 +82,13 @@ router.get("/conversation/:userId", authenticateToken, async (req, res) => {
 
 router.get("/search", authenticateToken, async (req, res) => {
   try {
-    const query = req.query.q;
-    // Include profileImage in user search results
+    const query = req.query.q?.trim();
+    if (!query || query.length > 50) {
+      return res.status(400).json({ error: "Search query must be 1–50 characters" });
+    }
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const users = await User.find({
-      username: { $regex: query, $options: "i" },
+      username: { $regex: escaped, $options: "i" },
       _id: { $ne: req.user.id },
     }).select("username _id profileImage");
 

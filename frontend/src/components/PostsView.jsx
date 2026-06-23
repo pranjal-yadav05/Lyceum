@@ -18,6 +18,9 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import { resolveImageUrl, coverBackgroundStyle } from "../lib/imageUrl";
+import ConfirmDialog from "./ConfirmDialog";
 
 const API_URL = process.env.REACT_APP_API_URL;
 
@@ -30,6 +33,7 @@ export default function PostsView({ topicId, username, onClose }) {
   const [editingPostId, setEditingPostId] = useState(null);
   const [editContent, setEditContent] = useState("");
   const [replyingToId, setReplyingToId] = useState(null);
+  const [deletePostId, setDeletePostId] = useState(null);
   const scrollAreaRef = useRef(null);
   const textareaRef = useRef(null);
   const scrollViewportRef = useRef(null);
@@ -131,48 +135,43 @@ export default function PostsView({ topicId, username, onClose }) {
         textareaRef.current.style.height = "auto";
       }
       await fetchPosts();
+      toast.success("Post created");
     } catch (error) {
       console.error("Error creating post:", error);
+      toast.error("Failed to create post");
     }
   };
 
   const handleDeletePost = async (postId) => {
-    if (!postId) {
-      console.error("Invalid post ID");
-      return;
-    }
+    if (!postId) return;
 
-    const token = localStorage.getItem("token");
     try {
-      await axios.delete(`${API_URL}/posts/${postId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      await axios.delete(`${API_URL}/topics/${topicId}/posts/${postId}`, {
+        withCredentials: true,
       });
       await fetchPosts();
+      toast.success("Post deleted");
     } catch (error) {
-      console.error("Error deleting post:", error.message);
+      console.error("Error deleting post:", error);
+      toast.error("Failed to delete post");
     }
   };
 
   const handleEditPost = async (postId) => {
-    const token = localStorage.getItem("token");
     if (!editContent.trim()) return;
     try {
       await axios.patch(
-        `${API_URL}/posts/${postId}`,
+        `${API_URL}/topics/${topicId}/posts/${postId}`,
         { content: editContent },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { withCredentials: true }
       );
       setEditingPostId(null);
       setEditContent("");
       await fetchPosts();
+      toast.success("Post updated");
     } catch (error) {
       console.error("Error editing post:", error);
+      toast.error("Failed to update post");
     }
   };
 
@@ -229,16 +228,18 @@ export default function PostsView({ topicId, username, onClose }) {
           <div className="flex items-center justify-center h-full">
             <LoadingSpinner />
           </div>
+        ) : posts.length === 0 ? (
+          <div className="flex items-center justify-center h-full p-8">
+            <p className="text-gray-400 text-center">
+              No posts yet. Be the first to start the discussion!
+            </p>
+          </div>
         ) : (
           <div className="space-y-4 p-4">
             {posts.map((post) => (
               <div
                 key={post._id}
-                style={{
-                  backgroundImage: `linear-gradient(rgba(26, 20, 37, 0.8), rgba(26, 20, 37, 0.8)), url(${post.coverImage})`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                }}
+                style={coverBackgroundStyle(post.coverImage)}
                 className={`p-4 rounded-lg ${
                   post.author === username
                     ? "bg-purple-900 ml-auto"
@@ -251,7 +252,7 @@ export default function PostsView({ topicId, username, onClose }) {
                     onClick={() => navigate(`/profile/${post.author}`)}
                   >
                     {post.profileImage ? (
-                      <AvatarImage src={post.profileImage} alt={post.author} />
+                      <AvatarImage src={resolveImageUrl(post.profileImage)} alt={post.author} />
                     ) : (
                       <AvatarFallback className="text-black">
                         {post.author.charAt(0)}
@@ -346,7 +347,7 @@ export default function PostsView({ topicId, username, onClose }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeletePost(post._id)}
+                        onClick={() => setDeletePostId(post._id)}
                         className="text-red-400 hover:text-red-300"
                       >
                         Delete
@@ -397,6 +398,15 @@ export default function PostsView({ topicId, username, onClose }) {
           <Send className="h-5 w-5" />
         </Button>
       </form>
+      <ConfirmDialog
+        open={!!deletePostId}
+        onOpenChange={(open) => !open && setDeletePostId(null)}
+        title="Delete post?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => handleDeletePost(deletePostId)}
+      />
     </div>
   );
 }

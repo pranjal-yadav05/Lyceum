@@ -26,14 +26,8 @@ const AdminFeedback = () => {
     try {
       setLoading(true);
 
-      // Fetch all feedback
       const allFeedbackResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/admin/feedback`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        `${process.env.REACT_APP_API_URL}/admin/feedback`
       );
 
       const allFeedback = allFeedbackResponse.data;
@@ -54,15 +48,9 @@ const AdminFeedback = () => {
 
   const markAsReviewed = async (feedbackId) => {
     try {
-      // Trigger backend to mark feedback as reviewed
       await axios.patch(
         `${process.env.REACT_APP_API_URL}/admin/feedback/${feedbackId}/review`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        {}
       );
 
       const feedbackToReview = feedbackData.find(
@@ -81,15 +69,9 @@ const AdminFeedback = () => {
 
   const markAsPending = async (feedbackId) => {
     try {
-      // Trigger backend to mark feedback as pending
       await axios.patch(
         `${process.env.REACT_APP_API_URL}/admin/feedback/${feedbackId}/pending`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
+        {}
       );
 
       const feedbackToPending = reviewedFeedback.find(

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import Peer from "peerjs";
 import { Button } from "./ui/button";
@@ -15,11 +15,16 @@ import {
 } from "lucide-react";
 import ChatBox from "./ChatBox";
 import axios from "axios";
+import ConfirmDialog from "./ConfirmDialog";
+import { useAuth } from "../contexts/AuthContext";
 
 const StudyRoomPage = () => {
   const { roomId } = useParams();
+  const navigate = useNavigate();
+  const { user, socketToken } = useAuth();
   const [peers, setPeers] = useState([]);
   const [userName, setUserName] = useState("");
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [socketReady, setSocketReady] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const myVideoRef = useRef();
@@ -32,15 +37,18 @@ const StudyRoomPage = () => {
     return savedState ? JSON.parse(savedState) : { video: true, audio: true };
   });
   const startTimeRef = useRef(null); // Use a ref to persist startTime
+  const sessionSavedRef = useRef(false);
 
   useEffect(() => {
-    startTimeRef.current = new Date(); // Set startTime when the component mounts
+    startTimeRef.current = new Date();
 
-    const storedUsername = localStorage.getItem("username");
-    setUserName(storedUsername);
+    setUserName(user?.username ?? "");
 
     const addr = process.env.REACT_APP_SOCKET_URL;
-    socket.current = io(addr, { withCredentials: true });
+    socket.current = io(addr, {
+      withCredentials: true,
+      auth: socketToken ? { token: socketToken } : undefined,
+    });
 
     socket.current.on("connect", () => {
       setSocketReady(true);
@@ -52,7 +60,7 @@ const StudyRoomPage = () => {
         port: process.env.REACT_APP_PEER_PORT,
         path: "/peerjs",
         secure: true,
-        debug: 3,
+        debug: 0,
         config: {
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -67,7 +75,7 @@ const StudyRoomPage = () => {
         socket.current.emit("join-room", {
           roomId,
           userId: id,
-          username: storedUsername,
+          username: user?.username ?? "",
           mediaState,
         });
       });
@@ -234,39 +242,27 @@ const StudyRoomPage = () => {
     };
   }, [roomId, userName]);
 
-  // unstable code starts
   useEffect(() => {
-    let hasSentData = false; // Add a flag to prevent multiple calls
-
     const saveSessionData = async () => {
-      if (!hasSentData) {
-        hasSentData = true; // Set the flag to true to prevent further calls
+      if (sessionSavedRef.current) return;
+      sessionSavedRef.current = true;
 
-        const endTime = new Date();
-        const duration = Math.floor((endTime - startTimeRef.current) / 1000); // Calculate duration in seconds
-        const userId = localStorage.getItem("userId");
-        const startTime = startTimeRef.current.toISOString();
-        const endTimeISO = endTime.toISOString();
+      const endTime = new Date();
+      const duration = Math.floor((endTime - startTimeRef.current) / 1000);
+      const sessionData = {
+        type: "studysession",
+        duration,
+        startTime: startTimeRef.current.toISOString(),
+        endTime: endTime.toISOString(),
+      };
 
-        const sessionData = {
-          userId,
-          type: "studysession",
-          duration, // Duration in seconds
-          startTime, // Keep startTime in ISO format
-          endTime: endTimeISO, // Keep endTime in ISO format
-        };
-
-        // console.log("Session data being sent:", sessionData);
-
-        try {
-          const response = await axios.post(
-            "https://lyceum.vercel.app/api/studySessions",
-            sessionData
-          );
-          console.log("Study session saved:", response.data);
-        } catch (error) {
-          console.error("Error saving study session:", error);
-        }
+      try {
+        await axios.post(
+          `${process.env.REACT_APP_API_URL}/studySessions`,
+          sessionData
+        );
+      } catch (error) {
+        console.error("Error saving study session:", error);
       }
     };
 
@@ -274,7 +270,6 @@ const StudyRoomPage = () => {
       saveSessionData();
     };
   }, [roomId, userName]);
-  // unstable code ends
 
   const toggleAudio = () => {
     if (myStreamRef.current) {
@@ -314,17 +309,17 @@ const StudyRoomPage = () => {
     }
   };
 
-  const handleExitRoom = () => {
-    if (window.confirm("Are you sure you want to exit the chat room?")) {
-      if (myStreamRef.current) {
-        myStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      peersRef.current.forEach(({ call }) => call.close());
-      socket.current.disconnect();
-      peer.current.destroy();
-      window.location.href = "/";
+  const exitRoom = () => {
+    if (myStreamRef.current) {
+      myStreamRef.current.getTracks().forEach((track) => track.stop());
     }
+    peersRef.current.forEach(({ call }) => call.close());
+    socket.current?.disconnect();
+    peer.current?.destroy();
+    navigate("/dashboard");
   };
+
+  const handleExitRoom = () => setShowExitConfirm(true);
 
   return (
     <div className="min-h-screen bg-[#0f0a1f] text-white p-4">
@@ -488,6 +483,15 @@ const StudyRoomPage = () => {
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={showExitConfirm}
+        onOpenChange={setShowExitConfirm}
+        title="Leave study room?"
+        description="Your video and chat connection will end."
+        confirmLabel="Leave"
+        destructive
+        onConfirm={exitRoom}
+      />
     </div>
   );
 };

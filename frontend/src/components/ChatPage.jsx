@@ -6,11 +6,12 @@ import LeftSidebar from "./LeftSidebar";
 import {
   initializeSocket,
   disconnectSocket,
-  checkSocketConnection,
+  triggerReconnect,
 } from "../services/messageService";
 import { Button } from "./ui/button";
 import { Menu, ArrowLeft, Loader2, WifiOff } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../contexts/AuthContext";
 
 const ChatPage = () => {
   const [selectedConversationId, setSelectedConversationId] = useState(null);
@@ -22,18 +23,19 @@ const ChatPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const sidebarRef = useRef(null);
-  const [socket, setSocket] = useState(null);
   const buttonRef = useRef(null);
+  const { socketToken, refreshSocketToken, isAuthenticated } = useAuth();
 
   const setupSocket = useCallback(
     async (isMounted) => {
       try {
-        const socket = await initializeSocket();
+        const socket = await initializeSocket(socketToken, refreshSocketToken);
         if (!isMounted) return; // Prevent state updates if unmounted
-        setSocket(socket);
-        setIsConnected(true);
+        setIsConnected(!!socket);
         setIsLoading(false);
-        // toast.success("Connected to server");
+        if (!socket) {
+          toast.error("Could not connect to chat server. Is LyceumSocket running on port 5001?");
+        }
       } catch (error) {
         if (!isMounted) return; // Prevent state updates if unmounted
         console.error("Socket setup error:", error);
@@ -52,29 +54,29 @@ const ChatPage = () => {
         }
       }
     },
-    [navigate]
+    [navigate, socketToken, refreshSocketToken]
   );
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    // console.log("Token on ChatPage load:", token ? "Token exists" : "No token");
-
-    if (!token) {
+    if (!isAuthenticated) {
       navigate("/login");
       return;
     }
 
-    let isMounted = true; // Track if the component is still mounted
+    if (!socketToken) {
+      return;
+    }
+
+    let isMounted = true;
 
     setupSocket(isMounted);
 
     return () => {
-      isMounted = false; // Mark as unmounted
+      isMounted = false;
       disconnectSocket();
-      setSocket(null);
+      setIsConnected(false);
     };
-  }, [navigate, setupSocket]);
+  }, [navigate, setupSocket, isAuthenticated, socketToken]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -115,30 +117,20 @@ const ChatPage = () => {
   };
 
   const handleReconnect = async () => {
-    toast.loading("Attempting to reconnect...");
+    const toastId = toast.loading("Reconnecting...");
     try {
-      const isConnected = await checkSocketConnection();
-      if (isConnected) {
-        setIsConnected(true);
-        // toast.success("Reconnected to server");
-      } else {
-        throw new Error("Failed to reconnect");
-      }
+      await triggerReconnect();
+      await setupSocket(true);
+      toast.success("Reconnected", { id: toastId });
     } catch (error) {
       console.error("Reconnection error:", error);
-      toast.error("Failed to reconnect");
+      toast.error("Failed to reconnect", { id: toastId });
     }
   };
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      // Your timeout logic here
-    }, 20000);
-
-    return () => {
-      clearTimeout(timeoutId); // Clear the timeout on unmount
-    };
-  }, []);
+  const openSearchDrawer = () => {
+    navigate("/chat");
+  };
 
   if (isLoading) {
     return (
@@ -164,6 +156,7 @@ const ChatPage = () => {
           <LeftSidebar
             isSidebarOpen={isSidebarOpen}
             closeSidebar={() => setIsSidebarOpen(false)}
+            openSearchDrawer={openSearchDrawer}
             ref={sidebarRef}
             className={`fixed md:relative z-30 h-full transition-transform duration-300 ease-in-out ${
               isSidebarOpen
@@ -198,6 +191,7 @@ const ChatPage = () => {
                 onSelectConversation={handleSelectConversation}
                 selectedConversationId={selectedConversationId}
                 onReceiverInfoFetched={handleReceiverInfoFetched}
+                socketReady={isConnected}
               />
             </div>
           </div>
@@ -226,7 +220,6 @@ const ChatPage = () => {
             <div className="flex-1 overflow-hidden">
               <Chat
                 selectedUserId={selectedConversationId}
-                socket={socket}
                 onConversationCreated={handleSelectConversation}
                 initialReceiverInfo={receiverInfo}
               />
@@ -251,9 +244,6 @@ const ChatPage = () => {
         </div>
       )}
     </div>
-    // <div>
-    //   Under Construction...🚧
-    // </div>
   );
 };
 

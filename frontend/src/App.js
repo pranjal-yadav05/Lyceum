@@ -1,198 +1,307 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, Suspense, lazy } from "react";
 import {
   BrowserRouter as Router,
   Route,
   Routes,
   Navigate,
 } from "react-router-dom";
+import axios from "axios";
 import LoginPage from "./components/LoginPage";
-import ForumPosts from "./components/ForumPosts";
-import SelectInterests from "./components/SelectInterests";
 import RegisterPage from "./components/RegisterPage";
-import StudyRoomPage from "./components/StudyRoomPage";
-import { GoogleOAuthProvider } from "@react-oauth/google";
-import Dashboard from "./components/Dashboard";
-import ProfilePage from "./components/ProfilePage";
-import { jwtDecode } from "jwt-decode";
-import ChatPage from "./components/ChatPage";
-import BlobManager from "./components/BlobManager";
 import { Toaster } from "react-hot-toast";
-import AdminLayout from "./components/AdminLayout";
-import AdminDashboard from "./admin-pages/AdminDashboard.jsx";
-import AdminUsers from "./admin-pages/AdminUsers";
-import AdminStudyRoom from "./admin-pages/AdminStudyRoom";
-import AdminSearch from "./admin-pages/AdminSearch";
-import AdminErrors from "./admin-pages/AdminErrors";
-import AdminSettings from "./admin-pages/AdminSettings";
-import AdminSecurity from "./admin-pages/AdminSecurity";
-import AdminFeedback from "./admin-pages/AdminFeedback";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { AuthContext } from "./contexts/AuthContext";
+import { API_URL as CONFIG_API_URL } from "./config/env";
 
-const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const ForumPosts = lazy(() => import("./components/ForumPosts"));
+const SelectInterests = lazy(() => import("./components/SelectInterests"));
+const SoloStudyCatalog = lazy(() => import("./components/SoloStudyCatalog"));
+const SoloStudyRoom = lazy(() => import("./components/SoloStudyRoom"));
+const StudyRoomPage = lazy(() => import("./components/StudyRoomPage"));
+const Dashboard = lazy(() => import("./components/Dashboard"));
+const ProfilePage = lazy(() => import("./components/ProfilePage"));
+const ChatPage = lazy(() => import("./components/ChatPage"));
+const BlobManager = lazy(() => import("./components/BlobManager"));
+const AdminLayout = lazy(() => import("./components/AdminLayout"));
+const AdminDashboard = lazy(() => import("./admin-pages/AdminDashboard.jsx"));
+const AdminUsers = lazy(() => import("./admin-pages/AdminUsers"));
+const AdminFocusSpaces = lazy(() => import("./admin-pages/AdminFocusSpaces"));
+const AdminSearch = lazy(() => import("./admin-pages/AdminSearch"));
+const AdminErrors = lazy(() => import("./admin-pages/AdminErrors"));
+const AdminSettings = lazy(() => import("./admin-pages/AdminSettings"));
+const AdminSecurity = lazy(() => import("./admin-pages/AdminSecurity"));
+const AdminFeedback = lazy(() => import("./admin-pages/AdminFeedback"));
+
+const API_URL = CONFIG_API_URL;
+
+const REQUIRED_ENV = [
+  "REACT_APP_SOCKET_URL",
+  "REACT_APP_GOOGLE_CLIENT_ID",
+].concat(process.env.NODE_ENV === "production" ? ["REACT_APP_API_URL"] : []);
+
+function EnvGuard({ children }) {
+  const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#1a1339] p-4">
+        <div className="text-center text-white max-w-md">
+          <h1 className="text-xl font-bold mb-2">Configuration Error</h1>
+          <p className="text-white/70 text-sm">
+            Missing environment variables: {missing.join(", ")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  return children;
+}
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1339] via-[#2a1f5a] to-[#3a2b7a]">
+      <div className="text-white/70">Loading...</div>
+    </div>
+  );
+}
+
+function ProtectedRoute({ isAuthenticated, children }) {
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+axios.defaults.withCredentials = true;
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    !!localStorage.getItem("token")
-  );
+  const [user, setUser] = useState(null);
+  const [socketToken, setSocketToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [username, setUsername] = useState("");
+  const [authError, setAuthError] = useState(null);
 
-  useEffect(() => {
-    const initializeAuth = () => {
-      const token = localStorage.getItem("token");
-
-      if (token) {
-        try {
-          const decodedToken = jwtDecode(token);
-          setUsername(decodedToken.username || "");
-          setIsAuthenticated(true);
-        } catch (error) {
-          console.error("Error decoding token:", error);
-          localStorage.removeItem("token");
-          setIsAuthenticated(false);
-          setUsername("");
-        }
+  const refreshAuth = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/me`);
+      setUser(data.user ?? null);
+      setSocketToken(data.socketToken ?? null);
+      setAuthError(null);
+      return data;
+    } catch (err) {
+      setUser(null);
+      setSocketToken(null);
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        return null;
       }
+      setAuthError("Unable to connect to the server. Please try again.");
+      return null;
+    } finally {
       setIsLoading(false);
-    };
-
-    initializeAuth();
+    }
   }, []);
 
-  const handleLogin = (token) => {
-    localStorage.setItem("token", token);
-
+  const refreshSocketToken = useCallback(async () => {
     try {
-      const decodedToken = jwtDecode(token);
-
-      setUsername(decodedToken.username || "");
-      setIsAuthenticated(true);
-      localStorage.setItem("username", decodedToken.username);
-      localStorage.setItem("userId", decodedToken.id); // Use `id` instead of `_id`
-      localStorage.setItem("token", token);
-    } catch (error) {
-      console.error("Error during login:", error);
+      const { data } = await axios.get(`${API_URL}/me`);
+      setSocketToken(data.socketToken);
+      return data.socketToken;
+    } catch {
+      return null;
     }
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`);
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      setUser(null);
+      setSocketToken(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAuth();
+  }, [refreshAuth]);
+
+  const isAuthenticated = !!user;
+  const username = user?.username ?? "";
+
+  const authValue = {
+    user,
+    socketToken,
+    isAuthenticated,
+    isLoading,
+    refreshAuth,
+    refreshSocketToken,
+    logout,
   };
 
   if (isLoading) {
-    return <div>Loading...</div>; // Or replace with a proper loading spinner
+    return <PageLoader />;
+  }
+
+  if (authError && !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a1339] via-[#2a1f5a] to-[#3a2b7a] p-4">
+        <div className="text-center text-white max-w-md">
+          <p className="text-white/70 mb-4">{authError}</p>
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              setAuthError(null);
+              refreshAuth();
+            }}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <GoogleOAuthProvider clientId={CLIENT_ID}>
-      <Router>
-        <Routes>
-          <Route
-            path="*"
-            element={
-              isAuthenticated ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <LoginPage
-                setAuth={setIsAuthenticated}
-                onLoginSuccess={handleLogin}
-              />
-            }
-          />
-          <Route
-            path="/register"
-            element={<RegisterPage onLoginSuccess={handleLogin} />}
-          />
+    <ErrorBoundary>
+      <EnvGuard>
+        <AuthContext.Provider value={authValue}>
+          <Router>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/dashboard" replace />
+                    ) : (
+                      <LoginPage onLoginSuccess={refreshAuth} />
+                    )
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    isAuthenticated ? (
+                      <Navigate to="/dashboard" replace />
+                    ) : (
+                      <RegisterPage onLoginSuccess={refreshAuth} />
+                    )
+                  }
+                />
 
-          {/* Protected Routes */}
-          <Route
-            path="/chat"
-            element={
-              isAuthenticated ? <ChatPage /> : <Navigate to="/login" replace />
-            }
-          />
-          <Route
-            path="/select-interests"
-            element={
-              isAuthenticated ? (
-                <SelectInterests />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/studyroom/:roomId"
-            element={
-              isAuthenticated ? (
-                <StudyRoomPage username={username} setUsername={setUsername} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/forum"
-            element={
-              isAuthenticated ? (
-                <ForumPosts username={username} setUsername={setUsername} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          {/* <Route path="/profile" element={isAuthenticated ? <ProfilePage username={username} setUsername={setUsername}/> : <Navigate to="/login" replace />}/> */}
-          <Route
-            path="/profile/:username"
-            element={
-              isAuthenticated ? (
-                <ProfilePage username={username} setUsername={setUsername} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route path="/blob" element={<BlobManager />} />
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/select-interests"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <SelectInterests />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/solo-study"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <SoloStudyCatalog />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/solo-study/:envId"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <SoloStudyRoom />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/studyroom/:roomId"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <StudyRoomPage username={username} />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/forum"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <ForumPosts username={username} />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile/:username"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <ProfilePage username={username} />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/blob"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <BlobManager />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <Dashboard username={username} />
+                    </ProtectedRoute>
+                  }
+                />
 
-          <Route
-            path="/dashboard"
-            element={
-              isAuthenticated ? (
-                <Dashboard username={username} setUsername={setUsername} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+                <Route
+                  path="/admin/*"
+                  element={
+                    <ProtectedRoute isAuthenticated={isAuthenticated}>
+                      <AdminLayout>
+                        <Routes>
+                          <Route path="dashboard" element={<AdminDashboard />} />
+                          <Route path="users" element={<AdminUsers />} />
+                          <Route path="focus-spaces" element={<AdminFocusSpaces />} />
+                          <Route path="search" element={<AdminSearch />} />
+                          <Route path="errors" element={<AdminErrors />} />
+                          <Route path="settings" element={<AdminSettings />} />
+                          <Route path="security" element={<AdminSecurity />} />
+                          <Route path="feedback" element={<AdminFeedback />} />
+                          <Route
+                            path="*"
+                            element={<Navigate to="/admin/dashboard" replace />}
+                          />
+                        </Routes>
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  }
+                />
 
-          {/* Admin Routes */}
-          <Route
-            path="/admin/*"
-            element={
-              <AdminLayout>
-                <Routes>
-                  <Route path="dashboard" element={<AdminDashboard />} />
-                  <Route path="users" element={<AdminUsers />} />
-                  <Route path="studyroom" element={<AdminStudyRoom />} />
-                  <Route path="search" element={<AdminSearch />} />
-                  <Route path="errors" element={<AdminErrors />} />
-                  <Route path="settings" element={<AdminSettings />} />
-                  <Route path="security" element={<AdminSecurity />} />
-                  <Route path="feedback" element={<AdminFeedback />} />
-                  <Route
-                    path="*"
-                    element={<Navigate to="/admin/dashboard" replace />}
-                  />
-                </Routes>
-              </AdminLayout>
-            }
-          />
-        </Routes>
-      </Router>
-      <Toaster position="top-right" />
-    </GoogleOAuthProvider>
+                <Route
+                  path="*"
+                  element={
+                    <Navigate
+                      to={isAuthenticated ? "/dashboard" : "/login"}
+                      replace
+                    />
+                  }
+                />
+              </Routes>
+            </Suspense>
+            <Toaster position="top-right" />
+          </Router>
+        </AuthContext.Provider>
+      </EnvGuard>
+    </ErrorBoundary>
   );
 }
 

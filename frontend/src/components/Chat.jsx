@@ -2,13 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   getConversation,
   sendMessage,
-  initializeSocket,
   isSocketConnected,
   getUserStatus,
-  disconnectSocket,
   updateUserStatus,
-  checkSocketConnection,
-  searchUsers,
+  subscribeToMessages,
+  getUserById,
 } from "../services/messageService";
 import { Button } from "./ui/button";
 import { ScrollArea } from "./ui/scroll-area";
@@ -18,6 +16,7 @@ import { ChatHeader } from "./ChatHeader";
 import EmojiPicker from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Textarea } from "./ui/textarea";
+import { useAuth } from "../contexts/AuthContext";
 
 const Chat = ({
   selectedUserId,
@@ -37,40 +36,23 @@ const Chat = ({
       profileImage: "",
     }
   );
+  const { user: currentUser } = useAuth();
   const scrollAreaRef = useRef(null);
   const textareaRef = useRef(null);
   const [isConnected, setIsConnected] = useState(true);
-  const reconnectTimeoutRef = useRef(null);
 
   useEffect(() => {
-    let isSubscribed = true;
-
-    const initializeConnection = async () => {
-      try {
-        const isConnected = await checkSocketConnection();
-        if (isSubscribed && isConnected) {
-          await updateUserStatus("online");
-        }
-      } catch (error) {
-        console.error("Failed to initialize socket:", error);
-        if (isSubscribed) {
-          setError("Failed to connect to chat service");
-        }
-      }
-    };
-
-    initializeConnection();
-
+    updateUserStatus("online").catch(() => {});
     return () => {
-      isSubscribed = false;
-      updateUserStatus("offline");
-      disconnectSocket();
+      updateUserStatus("offline").catch(() => {});
     };
   }, []);
 
-  const checkConnection = useCallback(() => {
-    const connected = isSocketConnected();
-    setIsConnected(connected);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsConnected(isSocketConnected());
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const scrollToBottom = useCallback(() => {
@@ -84,46 +66,8 @@ const Chat = ({
     }
   }, []);
 
-  useEffect(() => {
-    const verifyConnection = () => {
-      checkConnection((response) => {
-        setIsConnected(response.status === "connected");
-        if (response.status !== "connected") {
-          // console.log("Socket disconnected, attempting to reconnect...");
-          initializeSocket();
-        }
-      });
-    };
-
-    reconnectTimeoutRef.current = setInterval(verifyConnection, 5000);
-
-    return () => {
-      if (reconnectTimeoutRef.current) {
-        clearInterval(reconnectTimeoutRef.current);
-      }
-    };
-  }, [checkConnection]);
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchMessages();
-      fetchReceiverInfo(selectedUserId);
-    } else {
-      setMessages([]);
-      setReceiverInfo({
-        username: "",
-        isOnline: false,
-        lastSeen: null,
-        profileImage: "",
-      });
-    }
-  }, [selectedUserId]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [scrollToBottom]);
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
+    if (!selectedUserId) return;
     try {
       setLoading(true);
       setError(null);
@@ -138,14 +82,16 @@ const Chat = ({
       if (fetchedMessages.length > 0) {
         const message = fetchedMessages[0];
         const receiver =
-          message.sender?._id === selectedUserId
+          message.sender?._id === selectedUserId ||
+          message.sender?.id === selectedUserId
             ? message.sender
             : message.recipient;
 
-        if (receiver) {
+        if (receiver?.username) {
           setReceiverInfo((prev) => ({
             ...prev,
-            username: receiver.username || "Unknown",
+            username: receiver.username,
+            profileImage: receiver.profileImage || prev.profileImage,
           }));
         }
       }
@@ -156,7 +102,82 @@ const Chat = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedUserId]);
+
+  const fetchReceiverInfo = useCallback(async (userId) => {
+    try {
+      const [userInfo, userStatus] = await Promise.all([
+        getUserById(userId),
+        getUserStatus(userId),
+      ]);
+
+      if (userInfo) {
+        setReceiverInfo({
+          username: userInfo.username,
+          isOnline: userStatus?.status === "online",
+          lastSeen: userStatus?.lastSeen,
+          profileImage: userInfo.profileImage || "",
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching receiver info:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedUserId) {
+      fetchMessages();
+      if (!initialReceiverInfo?.username) {
+        fetchReceiverInfo(selectedUserId);
+      }
+    } else {
+      setMessages([]);
+      setReceiverInfo({
+        username: "",
+        isOnline: false,
+        lastSeen: null,
+        profileImage: "",
+      });
+    }
+  }, [selectedUserId, fetchMessages, fetchReceiverInfo, initialReceiverInfo?.username]);
+
+  useEffect(() => {
+    if (initialReceiverInfo?.username) {
+      setReceiverInfo(initialReceiverInfo);
+    }
+  }, [initialReceiverInfo]);
+
+  useEffect(() => {
+    if (!selectedUserId) return;
+
+    let unsubscribe = () => {};
+
+    subscribeToMessages((message) => {
+      const senderId = message.sender?._id || message.sender?.id;
+      const recipientId = message.recipient?._id || message.recipient?.id;
+      const myId = currentUser?.id;
+
+      const isRelevant =
+        (senderId === selectedUserId && recipientId === myId) ||
+        (recipientId === selectedUserId && senderId === myId);
+
+      if (!isRelevant) return;
+
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === message._id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    }).then((unsub) => {
+      unsubscribe = unsub;
+    });
+
+    return () => unsubscribe();
+  }, [selectedUserId, currentUser?.id, scrollToBottom]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   const handleSendMessage = async (e) => {
     e?.preventDefault();
@@ -166,18 +187,20 @@ const Chat = ({
       setSending(true);
       setError(null);
 
-      const isConnected = await checkSocketConnection();
-      if (!isConnected) {
+      if (!isSocketConnected()) {
         throw new Error("Not connected to chat service");
       }
 
       const sentMessage = await sendMessage(selectedUserId, newMessage.trim());
 
       if (!sentMessage || !sentMessage._id || !sentMessage.sender) {
-        console.warn("Invalid message response:", sentMessage);
         throw new Error("Invalid message response from server.");
       }
 
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === sentMessage._id)) return prev;
+        return [...prev, sentMessage];
+      });
       setNewMessage("");
       scrollToBottom();
 
@@ -186,45 +209,12 @@ const Chat = ({
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      setError("Failed to send message: " + err.message);
+      setError("Failed to send message");
       toast.error("Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }
   };
-
-  const fetchReceiverInfo = async (userId) => {
-    try {
-      const [userSearchResult, userStatus] = await Promise.all([
-        searchUsers(userId),
-        getUserStatus(userId),
-      ]);
-
-      const userInfo = userSearchResult.find((user) => user._id === userId);
-      if (userInfo) {
-        setReceiverInfo({
-          username: userInfo.username,
-          isOnline: userStatus.status === "online",
-          lastSeen: userStatus.lastSeen,
-          profileImage: userInfo.profileImage || "",
-        });
-      }
-    } catch (err) {
-      console.error("Error fetching receiver info:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedUserId) {
-      fetchReceiverInfo(selectedUserId);
-    }
-  }, [selectedUserId]);
-
-  useEffect(() => {
-    if (initialReceiverInfo) {
-      setReceiverInfo(initialReceiverInfo);
-    }
-  }, [initialReceiverInfo]);
 
   const handleEmojiSelect = (emojiObject) => {
     const cursor = textareaRef.current?.selectionStart || newMessage.length;
@@ -246,19 +236,15 @@ const Chat = ({
     }
   };
 
-  const renderMessage = (message, index) => {
-    if (!message || !message.sender) {
-      console.warn("Message or sender is undefined:", message);
-      return null;
-    }
+  const renderMessage = (message) => {
+    if (!message || !message.sender) return null;
 
     const senderUsername = message.sender?.username || "Unknown User";
-    const isCurrentUser =
-      message.sender?.username === localStorage.getItem("username");
+    const isCurrentUser = message.sender?.username === currentUser?.username;
 
     return (
       <div
-        key={index}
+        key={message._id}
         className={`flex ${
           isCurrentUser ? "justify-end" : "justify-start"
         } mb-4`}
@@ -299,7 +285,7 @@ const Chat = ({
       {selectedUserId && <ChatHeader {...receiverInfo} />}
       {!isConnected && (
         <div className="bg-red-500 text-white p-2 text-center" role="alert">
-          Disconnected. Attempting to reconnect...
+          Disconnected. Messages may not deliver in real time.
         </div>
       )}
       <div className="flex-1 flex flex-col min-h-0">
@@ -330,9 +316,7 @@ const Chat = ({
                   </p>
                 ) : (
                   <div role="list" aria-label="Message list">
-                    {messages.map((message, index) =>
-                      renderMessage(message, index)
-                    )}
+                    {messages.map(renderMessage)}
                   </div>
                 )}
               </div>

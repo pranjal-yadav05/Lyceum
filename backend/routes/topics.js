@@ -9,10 +9,12 @@ const router = express.Router();
 // Topic Routes
 
 // Create a new topic
-router.post("/topics", async (req, res) => {
+router.post("/topics", authenticateToken, async (req, res) => {
   try {
+    const { author: _ignoredAuthor, ...safeBody } = req.body;
     const topic = new Topic({
-      ...req.body,
+      ...safeBody,
+      author: req.user.username,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -88,23 +90,23 @@ router.get("/topics/category/:category", async (req, res) => {
 });
 
 // Update a topic
-router.patch("/topics/:id", async (req, res) => {
+router.patch("/topics/:id", authenticateToken, async (req, res) => {
   try {
     const topic = await Topic.findOne({ _id: req.params.id });
     if (!topic) {
       return res.status(404).json({ message: "Topic not found" });
     }
 
-    // Check if user is the author
-    if (topic.author !== req.body.username) {
+    if (topic.author !== req.user.username) {
       return res
         .status(403)
         .json({ message: "Not authorized to update this topic" });
     }
 
+    const { author: _ignoredAuthor, username: _ignoredUsername, ...safeBody } = req.body;
     const updatedTopic = await Topic.findByIdAndUpdate(
       req.params.id,
-      { ...req.body, updatedAt: new Date() },
+      { ...safeBody, updatedAt: new Date() },
       { new: true }
     );
     res.json(updatedTopic);
@@ -140,15 +142,17 @@ router.delete("/topics/:id", authenticateToken, async (req, res) => {
 // Post Routes within Topics
 
 // Create a new post in a topic
-router.post("/topics/:topicId/posts", async (req, res) => {
+router.post("/topics/:topicId/posts", authenticateToken, async (req, res) => {
   try {
     const topic = await Topic.findById(req.params.topicId);
     if (!topic) {
       return res.status(404).json({ message: "Topic not found" });
     }
 
+    const { author: _ignoredAuthor, ...safeBody } = req.body;
     const post = new Post({
-      ...req.body,
+      ...safeBody,
+      author: req.user.username,
       topicId: req.params.topicId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -173,7 +177,7 @@ router.get("/topics/:topicId/posts", async (req, res) => {
 });
 
 // Update a post
-router.patch("/topics/:topicId/posts/:postId", async (req, res) => {
+router.patch("/topics/:topicId/posts/:postId", authenticateToken, async (req, res) => {
   try {
     const post = await Post.findOne({
       _id: req.params.postId,
@@ -184,16 +188,16 @@ router.patch("/topics/:topicId/posts/:postId", async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // Check if user is the author
     if (post.author !== req.user.username) {
       return res
         .status(403)
         .json({ message: "Not authorized to update this post" });
     }
 
+    const { author: _ignoredAuthor, ...safeBody } = req.body;
     const updatedPost = await Post.findByIdAndUpdate(
       req.params.postId,
-      { ...req.body, updatedAt: new Date() },
+      { ...safeBody, updatedAt: new Date() },
       { new: true }
     );
     res.json(updatedPost);
@@ -203,7 +207,7 @@ router.patch("/topics/:topicId/posts/:postId", async (req, res) => {
 });
 
 // Delete a post
-router.delete("/topics/:topicId/posts/:postId", async (req, res) => {
+router.delete("/topics/:topicId/posts/:postId", authenticateToken, async (req, res) => {
   try {
     const post = await Post.findOne({
       _id: req.params.postId,
