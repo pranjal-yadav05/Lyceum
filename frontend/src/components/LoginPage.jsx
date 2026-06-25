@@ -249,12 +249,7 @@ function LoginPage({ onLoginSuccess }) {
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleSignInButton
-              theme="filled_black"
-              size="large"
-              onAuthenticated={(token, apiUser) => completeLogin(token, apiUser)}
-              onError={(message) => setError(message)}
-            />
+            <GoogleSignInButton theme="filled_black" size="large" />
           </CardFooter>
         </Card>
       </div>

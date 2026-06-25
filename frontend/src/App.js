@@ -6,7 +6,6 @@ import {
   Navigate,
 } from "react-router-dom";
 import axios from "axios";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import { Toaster } from "react-hot-toast";
@@ -41,7 +40,6 @@ const AdminSecurity = lazy(() => import("./admin-pages/AdminSecurity"));
 const AdminFeedback = lazy(() => import("./admin-pages/AdminFeedback"));
 
 const API_URL = CONFIG_API_URL;
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
 const REQUIRED_ENV = [
   "REACT_APP_SOCKET_URL",
@@ -171,8 +169,16 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (token) {
+      establishSessionFromToken(token);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setIsLoading(false);
+      return;
+    }
     refreshAuth();
-  }, [refreshAuth]);
+  }, [establishSessionFromToken, refreshAuth]);
 
   const isAuthenticated = !!user;
   const username = user?.username ?? "";
@@ -215,7 +221,6 @@ function App() {
   return (
     <ErrorBoundary>
       <EnvGuard>
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
         <AuthContext.Provider value={authValue}>
           <Router>
             <Suspense fallback={<PageLoader />}>
@@ -352,7 +357,6 @@ function App() {
             <Toaster position="top-right" />
           </Router>
         </AuthContext.Provider>
-        </GoogleOAuthProvider>
       </EnvGuard>
     </ErrorBoundary>
   );
