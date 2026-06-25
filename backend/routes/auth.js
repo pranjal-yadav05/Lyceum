@@ -68,57 +68,30 @@ async function signInGoogleUser(payload) {
 // Apply audit logging to all auth routes
 router.use(auditLogger);
 
-// One-tap / button credential from the frontend (cross-domain safe).
-router.post("/google", async (req, res) => {
-  try {
-    const credential = req.body?.credential ?? req.body?.token;
-    if (!credential) {
-      return res.status(400).json({ error: "Missing Google credential" });
-    }
-
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const user = await signInGoogleUser(ticket.getPayload());
-    const jwtToken = generateToken(user);
-    setAuthCookie(res, jwtToken);
-
-    res.json({
-      token: jwtToken,
-      user: serializeUser(user),
-    });
-  } catch (error) {
-    console.error("Google authentication error:", error);
-    res.status(401).json({ error: "Invalid Google token" });
-  }
-});
-
-// Google Identity Services callback (ux_mode: redirect / response_mode: form_post).
-// Google POSTs the credential here as application/x-www-form-urlencoded, with a
-// double-submit g_csrf_token cookie + body field for CSRF protection.
+// Google Identity Services redirect callback (ux_mode: redirect).
+// Google POSTs the credential here; g_csrf_token is validated when present.
 router.post("/google/callback", async (req, res) => {
   const loginUrl = `${process.env.FRONTEND_URL}/login`;
   try {
-    const bodyCsrf = req.body?.g_csrf_token;
-    const cookieCsrf = req.cookies?.g_csrf_token;
-    if (!bodyCsrf || !cookieCsrf || bodyCsrf !== cookieCsrf) {
-      return res.redirect(`${loginUrl}?error=csrf`);
-    }
-
     const credential = req.body?.credential;
     if (!credential) {
       return res.redirect(`${loginUrl}?error=no_credential`);
     }
 
+    const bodyCsrf = req.body?.g_csrf_token;
+    const cookieCsrf = req.cookies?.g_csrf_token;
+    if (bodyCsrf || cookieCsrf) {
+      if (!bodyCsrf || !cookieCsrf || bodyCsrf !== cookieCsrf) {
+        return res.redirect(`${loginUrl}?error=csrf`);
+      }
+    }
+
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    const payload = ticket.getPayload();
 
-    const user = await signInGoogleUser(payload);
-
+    const user = await signInGoogleUser(ticket.getPayload());
     const jwtToken = generateToken(user);
     setAuthCookie(res, jwtToken);
     res.redirect(`${process.env.FRONTEND_URL}/dashboard`);

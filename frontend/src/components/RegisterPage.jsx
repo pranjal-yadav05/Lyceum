@@ -205,16 +205,7 @@ function RegisterPage({ onLoginSuccess }) {
               <div className="flex-grow border-t border-gray-600"></div>
             </div>
 
-            <GoogleSignInButton
-              theme="filled_black"
-              size="large"
-              text="signup_with"
-              onAuthenticated={(token, apiUser) => {
-                const session = establishSessionFromToken(token, apiUser);
-                if (session?.user) navigate("/dashboard");
-              }}
-              onError={(message) => setError(message)}
-            />
+            <GoogleSignInButton theme="filled_black" size="large" text="signup_with" />
           </CardFooter>
         </Card>
       </div>
