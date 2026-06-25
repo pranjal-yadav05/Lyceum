@@ -33,8 +33,66 @@ async function generateUniqueUsername(baseUsername) {
   return username;
 }
 
+function serializeUser(user) {
+  return {
+    id: user._id,
+    _id: user._id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+  };
+}
+
+async function signInGoogleUser(payload) {
+  let user = await User.findOne({ email: payload.email });
+  if (user) {
+    if (!user.googleId) {
+      user.googleId = payload.sub;
+      await user.save();
+    }
+  } else {
+    const username = await generateUniqueUsername(
+      payload.email.split("@")[0].toLowerCase()
+    );
+    user = new User({
+      email: payload.email,
+      name: payload.name,
+      googleId: payload.sub,
+      username,
+    });
+    await user.save();
+  }
+  return user;
+}
+
 // Apply audit logging to all auth routes
 router.use(auditLogger);
+
+// One-tap / button credential from the frontend (cross-domain safe).
+router.post("/google", async (req, res) => {
+  try {
+    const credential = req.body?.credential ?? req.body?.token;
+    if (!credential) {
+      return res.status(400).json({ error: "Missing Google credential" });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const user = await signInGoogleUser(ticket.getPayload());
+    const jwtToken = generateToken(user);
+    setAuthCookie(res, jwtToken);
+
+    res.json({
+      token: jwtToken,
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    console.error("Google authentication error:", error);
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+});
 
 // Google Identity Services callback (ux_mode: redirect / response_mode: form_post).
 // Google POSTs the credential here as application/x-www-form-urlencoded, with a
@@ -59,24 +117,7 @@ router.post("/google/callback", async (req, res) => {
     });
     const payload = ticket.getPayload();
 
-    let user = await User.findOne({ email: payload.email });
-    if (user) {
-      if (!user.googleId) {
-        user.googleId = payload.sub;
-        await user.save();
-      }
-    } else {
-      const username = await generateUniqueUsername(
-        payload.email.split("@")[0].toLowerCase()
-      );
-      user = new User({
-        email: payload.email,
-        name: payload.name,
-        googleId: payload.sub,
-        username,
-      });
-      await user.save();
-    }
+    const user = await signInGoogleUser(payload);
 
     const jwtToken = generateToken(user);
     setAuthCookie(res, jwtToken);
@@ -124,12 +165,8 @@ router.post("/register", async (req, res) => {
     setAuthCookie(res, token);
     res.status(201).json({
       message: "User registered successfully",
-      user: {
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
+      token,
+      user: serializeUser(user),
     });
   } catch (err) {
     console.error("Registration error:", err);
@@ -186,12 +223,8 @@ router.post("/login", async (req, res) => {
     setAuthCookie(res, token);
 
     res.json({
-      user: {
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
+      token,
+      user: serializeUser(user),
     });
   } catch (err) {
     console.error("Login error:", err);
