@@ -1,41 +1,41 @@
-import axios from "axios";
-import { GoogleLogin } from "@react-oauth/google";
-import { API_URL } from "../config/env";
+import { useEffect, useRef, useState } from "react";
+import { renderGoogleButton, waitForGoogleScript } from "../lib/googleAuth";
 
 const GoogleSignInButton = ({
-  onAuthenticated,
-  onError,
   theme = "filled_black",
   size = "large",
   text = "signin_with",
   width,
 }) => {
-  const handleSuccess = async (response) => {
-    try {
-      const res = await axios.post(`${API_URL}/auth/google`, {
-        token: response.credential,
-      });
-      const token = res.data?.token;
-      if (!token) {
-        onError?.("Google login failed");
-        return;
-      }
-      onAuthenticated?.(token, res.data?.user);
-    } catch {
-      onError?.("Google login failed");
-    }
-  };
+  const containerRef = useRef(null);
+  const renderedRef = useRef(false);
+  const [ready, setReady] = useState(false);
 
-  return (
-    <GoogleLogin
-      onSuccess={handleSuccess}
-      onError={() => onError?.("Google login failed")}
-      theme={theme}
-      size={size}
-      text={text}
-      width={width}
-    />
-  );
+  useEffect(() => {
+    let cancelled = false;
+    waitForGoogleScript()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !containerRef.current || renderedRef.current) return;
+
+    renderGoogleButton(containerRef.current, {
+      theme,
+      size,
+      text,
+      ...(width ? { width } : {}),
+    });
+    renderedRef.current = true;
+  }, [ready, theme, size, text, width]);
+
+  return <div ref={containerRef} />;
 };
 
 export default GoogleSignInButton;
