@@ -68,6 +68,32 @@ async function signInGoogleUser(payload) {
 // Apply audit logging to all auth routes
 router.use(auditLogger);
 
+// Popup / one-tap credential from @react-oauth/google (cross-domain safe).
+router.post("/google", async (req, res) => {
+  try {
+    const credential = req.body?.credential ?? req.body?.token;
+    if (!credential) {
+      return res.status(400).json({ error: "Missing Google credential" });
+    }
+
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const user = await signInGoogleUser(ticket.getPayload());
+    const jwtToken = generateToken(user);
+    setAuthCookie(res, jwtToken);
+
+    res.json({
+      token: jwtToken,
+      user: serializeUser(user),
+    });
+  } catch (error) {
+    console.error("Google authentication error:", error);
+    res.status(401).json({ error: "Invalid Google token" });
+  }
+});
+
 // Google Identity Services redirect callback (ux_mode: redirect).
 // Google POSTs the credential here; g_csrf_token is validated when present.
 router.post("/google/callback", async (req, res) => {
