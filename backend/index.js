@@ -37,6 +37,10 @@ const app = express();
 
 app.set("trust proxy", 1);
 
+function normalizeOrigin(url) {
+  return String(url || "").replace(/\/$/, "");
+}
+
 app.use(
   cors({
     origin(origin, callback) {
@@ -54,9 +58,11 @@ app.use(
       }
 
       const allowed = new Set(
-        [process.env.FRONTEND_URL].filter(Boolean)
+        [process.env.FRONTEND_URL, "https://lyceum.vercel.app"]
+          .filter(Boolean)
+          .map(normalizeOrigin)
       );
-      if (allowed.has(origin)) {
+      if (allowed.has(normalizeOrigin(origin))) {
         return callback(null, true);
       }
 

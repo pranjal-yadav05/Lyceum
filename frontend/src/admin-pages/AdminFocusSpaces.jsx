@@ -44,9 +44,10 @@ import {
   headCellSx,
   disabledRowSx,
 } from "./adminFocusSpacesStyles";
+import { API_URL } from "../config/env";
 
-const API = `${process.env.REACT_APP_API_URL}/admin/focus-spaces`;
-const SOUNDS_API = `${process.env.REACT_APP_API_URL}/admin/focus-sounds`;
+const API = `${API_URL}/admin/focus-spaces`;
+const SOUNDS_API = `${API_URL}/admin/focus-sounds`;
 
 const emptyCategory = { label: "", sortOrder: 0, useSections: false, enabled: true };
 const emptySection = { label: "", categoryId: "", sortOrder: 0, enabled: true };
