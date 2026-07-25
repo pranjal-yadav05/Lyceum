@@ -61,40 +61,61 @@ export default function SoloStudyRoom() {
   useEffect(() => {
     let cancelled = false;
 
+    const applySounds = (soundsRes) => {
+      setSoundCategories(soundsRes.data.categories || []);
+      const catalogSounds = soundsRes.data.sounds || [];
+      setSounds(catalogSounds);
+      setSoundLayers((prev) => {
+        const next = { ...loadSavedSoundLayers(), ...prev };
+        for (const sound of catalogSounds) {
+          if (!next[sound.id]) {
+            next[sound.id] = {
+              enabled: false,
+              volume: sound.defaultVolume ?? 50,
+            };
+          }
+        }
+        return next;
+      });
+    };
+
     const load = async () => {
       try {
         setLoading(true);
-        const [envRes, soundsRes] = await Promise.all([
-          axios.get(`${API_URL}/focus-spaces/${envId}`),
-          axios.get(`${API_URL}/focus-sounds`),
-        ]);
-        if (!cancelled) {
-          setEnvironment(envRes.data);
-          setSoundCategories(soundsRes.data.categories || []);
-          const catalogSounds = soundsRes.data.sounds || [];
-          setSounds(catalogSounds);
-          setSoundLayers((prev) => {
-            const next = { ...loadSavedSoundLayers(), ...prev };
-            for (const sound of catalogSounds) {
-              if (!next[sound.id]) {
-                next[sound.id] = {
-                  enabled: false,
-                  volume: sound.defaultVolume ?? 50,
-                };
-              }
-            }
-            return next;
+        // Environment alone must succeed to enter. Sounds are optional and used
+        // to hang Promise.all before — a slow/failed /focus-sounds looked like
+        // "Environment not found" and bounced the user out.
+        const envRes = await axios.get(`${API_URL}/focus-spaces/${envId}`, {
+          timeout: 12000,
+        });
+        if (cancelled) return;
+
+        setEnvironment(envRes.data);
+        startTimeRef.current = new Date();
+        sessionSavedRef.current = false;
+        setLoading(false);
+
+        try {
+          const soundsRes = await axios.get(`${API_URL}/focus-sounds`, {
+            timeout: 12000,
           });
-          startTimeRef.current = new Date();
-          sessionSavedRef.current = false;
+          if (!cancelled) applySounds(soundsRes);
+        } catch (soundErr) {
+          console.error("Failed to load focus sounds:", soundErr);
+          if (!cancelled) {
+            toast.error("Ambient layers couldn’t load — video still works.");
+          }
         }
-      } catch {
-        if (!cancelled) {
+      } catch (err) {
+        if (cancelled) return;
+        const status = err.response?.status;
+        if (status === 404) {
           toast.error("Environment not found");
-          navigate("/solo-study", { replace: true });
+        } else {
+          toast.error("Couldn’t open this space. Try again.");
         }
-      } finally {
-        if (!cancelled) setLoading(false);
+        navigate("/solo-study", { replace: true });
+        setLoading(false);
       }
     };
 

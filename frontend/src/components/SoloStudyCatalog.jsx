@@ -130,7 +130,9 @@ export default function SoloStudyCatalog() {
     try {
       if (!silent) setLoading(true);
       setLoadError(null);
-      const { data } = await axios.get(`${API_URL}/focus-spaces`);
+      const { data } = await axios.get(`${API_URL}/focus-spaces`, {
+        timeout: 15000,
+      });
       const next = {
         categories: data.categories || [],
         sections: data.sections || [],
