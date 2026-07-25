@@ -203,7 +203,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error fetching profile stats:", error);
     }
-  }, [API_URL, username]);
+  }, [username]);
 
   const fetchFriends = useCallback(async () => {
     try {
@@ -215,7 +215,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error fetching friends:", error);
     }
-  }, [API_URL, username, currentUsername]);
+  }, [username, currentUsername]);
 
   const checkFriendRequestStatus = useCallback(async () => {
     try {
@@ -226,7 +226,7 @@ const ProfilePage = () => {
     } catch (error) {
       console.error("Error checking friend request status:", error);
     }
-  }, [API_URL, currentUsername, username]);
+  }, [currentUsername, username]);
 
   useEffect(() => {
     fetchUserProfile();
