@@ -55,7 +55,10 @@ export function createYouTubeIframePlayer(
   { videoId, playerVars = {}, width = "100%", height = "100%", events }
 ) {
   const iframe = document.createElement("iframe");
-  iframe.title = "YouTube player";
+  // Decorative ambient embeds — keep out of tab order / a11y tree.
+  iframe.title = "";
+  iframe.tabIndex = -1;
+  iframe.setAttribute("aria-hidden", "true");
   iframe.width = width;
   iframe.height = height;
   iframe.setAttribute("frameborder", "0");

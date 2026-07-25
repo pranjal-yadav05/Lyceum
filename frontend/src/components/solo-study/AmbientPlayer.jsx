@@ -167,13 +167,14 @@ function AmbientPlayer({
 
   if (environment.type === "youtube" && environment.youtubeId) {
     return (
-      <div className={AMBIENT_FRAME_CLASS} aria-hidden="true">
+      // Decorative ambient layer only — keep iframe off the a11y tree and out of focus.
+      // `inert` prevents focus inside; do not put tabIndex on the mount (that makes it focusable).
+      <div className={AMBIENT_FRAME_CLASS} aria-hidden="true" inert="">
         <div
           ref={mountRef}
           className={`h-full w-full transition-opacity duration-300 ${
             awaitingFirstFrame ? "opacity-0" : "opacity-100"
           }`}
-          tabIndex={-1}
         />
         <ChromeMasks />
         <LoadingCover visible={awaitingFirstFrame} />
