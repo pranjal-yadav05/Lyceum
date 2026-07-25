@@ -1,31 +1,13 @@
 const raw = process.env.REACT_APP_API_URL;
 
 /**
- * Resolve the REST API base URL for browser calls.
- * Production always uses same-origin `/api` (frontend vercel.json rewrites to
- * lyceum-server) so browsers never hit cross-origin CORS against the API host.
+ * Browser REST base URL.
+ * - Local: CRA `proxy` → use `/api` when env points at localhost (or is unset)
+ * - Production: use REACT_APP_API_URL as set in Vercel (normally
+ *   https://lyceum-server.vercel.app/api). Do not rewrite to the frontend host.
  */
-function resolveApiUrl() {
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
-    return `${window.location.origin}/api`;
-  }
-
-  // Local CRA: same-origin /api via package.json proxy.
-  if (
-    process.env.NODE_ENV === "development" &&
-    (!raw || raw === "http://localhost:5000/api")
-  ) {
-    return "/api";
-  }
-
-  // SSR / build-time fallback
-  if (typeof window !== "undefined") {
-    if (!raw || raw.includes("lyceum-server.vercel.app")) {
-      return `${window.location.origin}/api`;
-    }
-  }
-
-  return raw || "";
-}
-
-export const API_URL = resolveApiUrl();
+export const API_URL =
+  process.env.NODE_ENV === "development" &&
+  (!raw || raw === "http://localhost:5000/api")
+    ? "/api"
+    : raw || "";
