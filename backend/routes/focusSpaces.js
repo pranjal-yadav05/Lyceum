@@ -4,7 +4,6 @@ import FocusSpaceEnvironment from "../models/FocusSpaceEnvironment.js";
 import FocusSpaceSection from "../models/FocusSpaceSection.js";
 import {
   ensureFocusSpacesSeeded,
-  reconcileFocusCatalog,
   buildSectionLabelMap,
 } from "../utils/seedFocusSpaces.js";
 
@@ -12,8 +11,9 @@ const router = express.Router();
 
 router.get("/", async (_req, res) => {
   try {
+    // Seed only when empty. Full reconcile on every GET times out on serverless
+    // after join/leave churn and makes the catalog look empty.
     await ensureFocusSpacesSeeded();
-    await reconcileFocusCatalog();
 
     const [categories, sections, environments] = await Promise.all([
       FocusSpaceCategory.find({ enabled: true }).sort({ sortOrder: 1, label: 1 }),

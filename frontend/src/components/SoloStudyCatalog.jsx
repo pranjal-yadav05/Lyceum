@@ -9,6 +9,43 @@ import LoadingSpinner from "./LoadingSpinner";
 import { cn } from "../lib/utils";
 import { API_URL } from "../config/env";
 
+const CATALOG_CACHE_KEY = "lyceum-focus-spaces-catalog";
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readCatalogCache() {
+  try {
+    const raw = sessionStorage.getItem(CATALOG_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > CATALOG_CACHE_TTL_MS) {
+      return null;
+    }
+    return {
+      categories: parsed.categories || [],
+      sections: parsed.sections || [],
+      environments: parsed.environments || [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCatalogCache({ categories, sections, environments }) {
+  try {
+    sessionStorage.setItem(
+      CATALOG_CACHE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        categories,
+        sections,
+        environments,
+      })
+    );
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 function sortEnvironments(items) {
   return [...items].sort(
     (a, b) => a.sortOrder - b.sortOrder || a.title.localeCompare(b.title)
@@ -66,11 +103,13 @@ function EnvironmentCard({ env, onSelect }) {
 }
 
 export default function SoloStudyCatalog() {
+  const cached = readCatalogCache();
   const [category, setCategory] = useState("all");
-  const [categories, setCategories] = useState([]);
-  const [sections, setSections] = useState([]);
-  const [environments, setEnvironments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState(cached?.categories ?? []);
+  const [sections, setSections] = useState(cached?.sections ?? []);
+  const [environments, setEnvironments] = useState(cached?.environments ?? []);
+  const [loading, setLoading] = useState(!cached);
+  const [loadError, setLoadError] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSearchDrawerOpen, setIsSearchDrawerOpen] = useState(false);
   const navigate = useNavigate();
@@ -87,24 +126,33 @@ export default function SoloStudyCatalog() {
     };
   }, []);
 
-  const loadCatalog = useCallback(async () => {
+  const loadCatalog = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      setLoadError(null);
       const { data } = await axios.get(`${API_URL}/focus-spaces`);
-      setCategories(data.categories || []);
-      setSections(data.sections || []);
-      setEnvironments(data.environments || []);
+      const next = {
+        categories: data.categories || [],
+        sections: data.sections || [],
+        environments: data.environments || [],
+      };
+      setCategories(next.categories);
+      setSections(next.sections);
+      setEnvironments(next.environments);
+      writeCatalogCache(next);
     } catch (err) {
       console.error("Failed to load focus spaces:", err);
-      setCategories([]);
-      setEnvironments([]);
+      setLoadError("Couldn’t load focus spaces. Check your connection and try again.");
+      // Keep any cached / previous environments — don’t fake an empty catalog.
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadCatalog();
+    loadCatalog({ silent: Boolean(cached) });
+    // Intentionally once on mount; cached is a one-shot read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadCatalog]);
 
   const filtered =
@@ -176,13 +224,40 @@ export default function SoloStudyCatalog() {
             </div>
           </header>
 
+          {loadError && (
+            <div className="rounded-2xl bg-red-500/10 border border-red-400/30 px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-sm text-red-100">{loadError}</p>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-white/10 hover:bg-white/15 text-white border border-white/20"
+                onClick={() => loadCatalog()}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-24">
               <LoadingSpinner />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 p-12 text-center shadow-xl">
-              <p className="text-gray-300">No environments in this category yet.</p>
+            <div className="rounded-2xl bg-white/10 backdrop-blur-lg border border-white/20 p-12 text-center shadow-xl space-y-3">
+              <p className="text-gray-300">
+                {loadError
+                  ? "Focus spaces couldn’t be loaded."
+                  : "No environments in this category yet."}
+              </p>
+              {loadError && (
+                <Button
+                  type="button"
+                  className="bg-purple-600 hover:bg-purple-500 text-white"
+                  onClick={() => loadCatalog()}
+                >
+                  Retry
+                </Button>
+              )}
             </div>
           ) : sectionLayout &&
             (sectionLayout.sectionBlocks.length > 0 || sectionLayout.unsectioned.length > 0) ? (

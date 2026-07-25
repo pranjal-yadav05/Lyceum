@@ -3,15 +3,14 @@ import FocusSoundCategory from "../models/FocusSoundCategory.js";
 import FocusSound from "../models/FocusSound.js";
 import {
   ensureFocusSoundsSeeded,
-  reconcileFocusCatalog,
 } from "../utils/seedFocusSounds.js";
 
 const router = express.Router();
 
 router.get("/", async (_req, res) => {
   try {
+    // Seed only when empty — avoid full reconcile on every room entry.
     await ensureFocusSoundsSeeded();
-    await reconcileFocusCatalog();
 
     const [categories, sounds] = await Promise.all([
       FocusSoundCategory.find({ enabled: true }).sort({ sortOrder: 1, label: 1 }),
