@@ -3,6 +3,7 @@ import { Trash2, Download, Loader, AlertCircle } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-hot-toast";
 import ConfirmDialog from "./ConfirmDialog";
+import { API_URL } from "../config/env";
 
 const BlobManager = () => {
   const [blobs, setBlobs] = useState([]);
@@ -20,7 +21,7 @@ const BlobManager = () => {
       setError(null);
 
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/storage/blobs`
+        `${API_URL}/storage/blobs`
       );
 
       if (response.status === 401)
@@ -38,7 +39,7 @@ const BlobManager = () => {
   const handleDelete = async (blobUrl) => {
     try {
       const response = await axios.delete(
-        `${process.env.REACT_APP_API_URL}/storage/blobs`,
+        `${API_URL}/storage/blobs`,
         {
           params: { url: blobUrl },
         }

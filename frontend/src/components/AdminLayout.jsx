@@ -5,6 +5,7 @@ import ErrorAlert from "./ErrorAlert";
 import LeftSidebar from "./LeftSidebar";
 import { Menu } from "lucide-react";
 import { Card, CardContent } from "./ui/card";
+import { API_URL } from "../config/env";
 
 const AdminLayout = ({ children }) => {
   const [error, setError] = useState(null);
@@ -18,7 +19,7 @@ const AdminLayout = ({ children }) => {
     const checkAdminAccess = async () => {
       try {
         const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/admin/check-access`
+          `${API_URL}/admin/check-access`
         );
 
         if (!response.data.isAdmin) {

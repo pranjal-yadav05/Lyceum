@@ -33,8 +33,7 @@ import {
   FOCUS_PILL_BTN_CLASS,
 } from "./solo-study/focusRoomStyles";
 import { loadYouTubeIframeApi } from "../lib/youtubeIframeApi";
-
-const API_URL = process.env.REACT_APP_API_URL;
+import { API_URL } from "../config/env";
 
 export default function SoloStudyRoom() {
   const { envId } = useParams();

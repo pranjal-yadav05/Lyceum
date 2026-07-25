@@ -10,8 +10,8 @@ import axios from "axios";
 import AnimatedCounter from "./AnimatedCounter";
 import LoadingSpinner from "./LoadingSpinner";
 import UnderDevelopmentModal from "./UnderDevelopmentModal"; // Import the modal component
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 const WelcomePage = ({ username }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

@@ -30,6 +30,7 @@ import {
 import axios from "axios";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../config/env";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -56,8 +57,8 @@ const AdminDashboard = () => {
       startDate.setDate(startDate.getDate() - 1);
 
       const [dashboardRes, errorMetricsResponse] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_API_URL}/admin/dashboard`),
-        axios.get(`${process.env.REACT_APP_API_URL}/admin/metrics/errors`, {
+        axios.get(`${API_URL}/admin/dashboard`),
+        axios.get(`${API_URL}/admin/metrics/errors`, {
           params: {
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
@@ -93,7 +94,7 @@ const AdminDashboard = () => {
 
   const handleSettingChange = async (setting, value) => {
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/admin/settings`, {
+      await axios.post(`${API_URL}/admin/settings`, {
         setting,
         value,
       });

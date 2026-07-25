@@ -21,8 +21,8 @@ import { Progress } from "./ui/progress";
 import { Card, CardContent } from "./ui/card";
 import { toast } from "react-hot-toast";
 import { cn } from "../lib/utils";
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 const interests = [
   {

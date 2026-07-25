@@ -14,6 +14,7 @@ import { MessageCircle } from "lucide-react";
 import axios from "axios";
 import LoadingSpinner from "../components/LoadingSpinner"; // Import LoadingSpinner
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../config/env";
 
 const AdminFeedback = () => {
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ const AdminFeedback = () => {
       setLoading(true);
 
       const allFeedbackResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/admin/feedback`
+        `${API_URL}/admin/feedback`
       );
 
       const allFeedback = allFeedbackResponse.data;
@@ -49,7 +50,7 @@ const AdminFeedback = () => {
   const markAsReviewed = async (feedbackId) => {
     try {
       await axios.patch(
-        `${process.env.REACT_APP_API_URL}/admin/feedback/${feedbackId}/review`,
+        `${API_URL}/admin/feedback/${feedbackId}/review`,
         {}
       );
 
@@ -70,7 +71,7 @@ const AdminFeedback = () => {
   const markAsPending = async (feedbackId) => {
     try {
       await axios.patch(
-        `${process.env.REACT_APP_API_URL}/admin/feedback/${feedbackId}/pending`,
+        `${API_URL}/admin/feedback/${feedbackId}/pending`,
         {}
       );
 

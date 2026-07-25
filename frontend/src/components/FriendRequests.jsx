@@ -5,8 +5,8 @@ import { Card, CardContent } from "./ui/card";
 import { Check, X } from 'lucide-react';
 import { resolveImageUrl } from "../lib/imageUrl";
 import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 const FriendRequests = () => {
     const [friendRequests, setFriendRequests] = useState([]);

@@ -12,8 +12,8 @@ import SearchDrawer from "./SearchDrawer";
 import TopicsList from "./TopicsList";
 import PostsView from "./PostsView";
 import LoadingSpinner from "./LoadingSpinner";
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 export default function ForumPosts({ username }) {
   const location = useLocation();

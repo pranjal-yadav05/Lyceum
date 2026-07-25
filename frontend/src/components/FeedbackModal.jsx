@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import axios from "axios";
 import NotificationPopup from "./ui/NotificationPopup";
+import { API_URL } from "../config/env";
 
 const FeedbackModal = ({ isOpen, onClose }) => {
   const [feedback, setFeedback] = useState("");
@@ -16,7 +17,7 @@ const FeedbackModal = ({ isOpen, onClose }) => {
     setIsSubmitting(true);
     try {
       await axios.post(
-        `${process.env.REACT_APP_API_URL}/feedback`,
+        `${API_URL}/feedback`,
         { feedback },
         { timeout: 5000 }
       );

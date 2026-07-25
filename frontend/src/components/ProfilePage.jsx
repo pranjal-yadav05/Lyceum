@@ -27,6 +27,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { toast } from "react-hot-toast";
 import { resolveImageUrl } from "../lib/imageUrl";
 import { cn } from "../lib/utils";
+import { API_URL } from "../config/env";
 
 function getAchievements(stats) {
   return [
@@ -154,8 +155,7 @@ function AchievementCard({ achievement }) {
 }
 
 const ProfilePage = () => {
-  const API_URL = process.env.REACT_APP_API_URL;
-  const { username } = useParams();
+    const { username } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -174,7 +174,7 @@ const ProfilePage = () => {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/user/profile/${username}`
+        `${API_URL}/user/profile/${username}`
       );
 
       setUser(response.data);
@@ -311,7 +311,7 @@ const ProfilePage = () => {
     try {
       setIsUploading(true);
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/user/${imageType}`,
+        `${API_URL}/user/${imageType}`,
         formData,
         {
           headers: {

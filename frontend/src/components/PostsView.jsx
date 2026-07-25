@@ -19,8 +19,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { resolveImageUrl, coverBackgroundStyle } from "../lib/imageUrl";
 import ConfirmDialog from "./ConfirmDialog";
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 export default function PostsView({ topicId, username, onClose }) {
   const [posts, setPosts] = useState([]);

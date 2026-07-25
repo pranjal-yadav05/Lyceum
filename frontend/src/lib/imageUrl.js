@@ -1,3 +1,4 @@
+import { API_URL } from "../config/env";
 const DEFAULT_PROFILE = "/images/defaultProfile.jpg";
 const DEFAULT_COVER = "/images/defaultCover.jpg";
 
@@ -9,7 +10,7 @@ export function resolveImageUrl(url, type = "profile") {
   if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) {
     return url;
   }
-  return `${process.env.REACT_APP_API_URL}/${url.replace(/^\//, "")}`;
+  return `${API_URL}/${url.replace(/^\//, "")}`;
 }
 
 export function coverBackgroundStyle(coverUrl) {

@@ -1,8 +1,9 @@
 import { io } from "socket.io-client";
 import axios from "axios";
+import { API_URL as ROOT_API_URL } from "../config/env";
 
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL;
-const API_URL = process.env.REACT_APP_API_URL + "/chat";
+const API_URL = ROOT_API_URL + "/chat";
 let socket = null;
 let connectionPromise = null;
 let currentToken = null;
@@ -359,7 +360,7 @@ export const withSocket = async (operation) => {
 
 export const getUserById = async (userId) => {
   const response = await axios.get(
-    `${process.env.REACT_APP_API_URL}/user/by-id/${userId}`
+    `${ROOT_API_URL}/user/by-id/${userId}`
   );
   return response.data;
 };

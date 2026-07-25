@@ -8,8 +8,8 @@ import LeftSidebar from "./LeftSidebar";
 import SearchDrawer from "./SearchDrawer";
 import AnimatedCounter from "./AnimatedCounter";
 import LoadingSpinner from "./LoadingSpinner";
+import { API_URL } from "../config/env";
 
-const API_URL = process.env.REACT_APP_API_URL;
 
 const Dashboard = ({ username }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);

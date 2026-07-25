@@ -17,6 +17,7 @@ import ChatBox from "./ChatBox";
 import axios from "axios";
 import ConfirmDialog from "./ConfirmDialog";
 import { useAuth } from "../contexts/AuthContext";
+import { API_URL } from "../config/env";
 
 const StudyRoomPage = () => {
   const { roomId } = useParams();
@@ -260,7 +261,7 @@ const StudyRoomPage = () => {
 
       try {
         await axios.post(
-          `${process.env.REACT_APP_API_URL}/studySessions`,
+          `${API_URL}/studySessions`,
           sessionData
         );
       } catch (error) {

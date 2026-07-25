@@ -18,6 +18,7 @@ import {
 } from "../components/ui/select";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../config/env";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -32,12 +33,12 @@ const AdminUsers = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/users`,
+        `${API_URL}/users`,
         { params: { sortBy, order } }
       );
 
       const authResponse = await axios.get(
-        `${process.env.REACT_APP_API_URL}/admin/users-auth-methods`
+        `${API_URL}/admin/users-auth-methods`
       );
 
       // Merge user data with authentication methods

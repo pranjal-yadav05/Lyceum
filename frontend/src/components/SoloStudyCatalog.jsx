@@ -7,8 +7,7 @@ import LeftSidebar from "./LeftSidebar";
 import SearchDrawer from "./SearchDrawer";
 import LoadingSpinner from "./LoadingSpinner";
 import { cn } from "../lib/utils";
-
-const API_URL = process.env.REACT_APP_API_URL;
+import { API_URL } from "../config/env";
 
 function sortEnvironments(items) {
   return [...items].sort(
