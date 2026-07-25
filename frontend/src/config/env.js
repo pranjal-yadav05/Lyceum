@@ -3,8 +3,8 @@ const raw = process.env.REACT_APP_API_URL;
 /**
  * Browser REST base URL.
  * - Local: CRA `proxy` → use `/api` when env points at localhost (or is unset)
- * - Production: use REACT_APP_API_URL as set in Vercel (normally
- *   https://lyceum-server.vercel.app/api). Do not rewrite to the frontend host.
+ * - Production: REACT_APP_API_URL → backend project "lyceum-vercel"
+ *   (https://lyceum-vercel.vercel.app/api), not the frontend "lyceum" host.
  */
 export const API_URL =
   process.env.NODE_ENV === "development" &&
